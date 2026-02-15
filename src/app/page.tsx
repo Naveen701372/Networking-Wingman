@@ -17,6 +17,7 @@ export default function Home() {
     activeCard,
     historyCards,
     currentTranscript,
+    currentCardStartIndex,
     startSession,
     endSession,
     createNewCard,
@@ -41,22 +42,72 @@ export default function Home() {
 
   // Extract entities when transcript grows significantly
   useEffect(() => {
-    const transcriptLength = currentTranscript.length;
+    // Get only the transcript for the current person (or full if no card yet)
+    const currentPersonTranscript = activeCard 
+      ? currentTranscript.slice(currentCardStartIndex)
+      : currentTranscript;
+    const transcriptLength = currentPersonTranscript.length;
     
     // Extract sooner - after just 30 characters of new content
     if (transcriptLength - lastTranscriptLengthRef.current < 30) {
       return;
     }
     
-    if (!isListening || !activeCard) {
+    if (!isListening) {
       return;
     }
 
     lastTranscriptLengthRef.current = transcriptLength;
 
-    // Run extraction
-    extractEntities(currentTranscript, activeCard).then((entities) => {
+    // Run extraction with only current person's transcript
+    extractEntities(currentPersonTranscript, activeCard || undefined).then((entities) => {
       if (!entities) return;
+
+      // If no active card yet and we detected a name, create the first card
+      if (!activeCard && entities.name) {
+        createNewCard();
+        // Apply the extracted data to the new card after a tick
+        setTimeout(() => {
+          const updates: Record<string, unknown> = {};
+          if (entities.name) updates.name = entities.name;
+          if (entities.company) updates.company = entities.company;
+          if (entities.role) updates.role = entities.role;
+          if (entities.category) updates.category = entities.category;
+          if (entities.summary) updates.summary = entities.summary;
+          updateActiveCard(updates);
+          
+          if (entities.actionItems) {
+            entities.actionItems.forEach(item => addActionItem(item));
+          }
+        }, 0);
+        return;
+      }
+
+      if (!activeCard) return;
+
+      // Check if this is a new person - create new card and move current to history
+      if (entities.isNewPerson && activeCard.name) {
+        // Only switch if current card has a name (meaning we captured someone)
+        createNewCard();
+        // Reset transcript length tracking for new card
+        lastTranscriptLengthRef.current = 0;
+        
+        // Apply new person's data after card is created
+        setTimeout(() => {
+          const updates: Record<string, unknown> = {};
+          if (entities.name) updates.name = entities.name;
+          if (entities.company) updates.company = entities.company;
+          if (entities.role) updates.role = entities.role;
+          if (entities.category) updates.category = entities.category;
+          if (entities.summary) updates.summary = entities.summary;
+          updateActiveCard(updates);
+          
+          if (entities.actionItems) {
+            entities.actionItems.forEach(item => addActionItem(item));
+          }
+        }, 0);
+        return;
+      }
 
       // Update the active card with extracted entities
       const updates: Record<string, unknown> = {};
@@ -94,7 +145,7 @@ export default function Home() {
         });
       }
     });
-  }, [currentTranscript, isListening, activeCard, extractEntities, updateActiveCard, addActionItem]);
+  }, [currentTranscript, currentCardStartIndex, isListening, activeCard, extractEntities, updateActiveCard, addActionItem, createNewCard]);
 
   const { 
     isConnected: isTranscribing, 
@@ -122,9 +173,9 @@ export default function Home() {
 
   const handleStartSession = useCallback(async () => {
     try {
-      // Update app state first
+      // Update app state first - but DON'T create a card yet
+      // Card will be created when first person is detected
       startSession();
-      createNewCard();
       
       // Connect to transcription service
       await connectTranscription();
@@ -139,7 +190,7 @@ export default function Home() {
       // Clean up on error
       endSession();
     }
-  }, [connectTranscription, startCapture, handleAudioChunk, startSession, createNewCard, endSession]);
+  }, [connectTranscription, startCapture, handleAudioChunk, startSession, endSession]);
 
   const handleEndSession = useCallback(() => {
     stopCapture();
@@ -170,8 +221,8 @@ export default function Home() {
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-200/50">
         <div className="flex items-center justify-between px-4 py-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">NetworkMem</h1>
-            <p className="text-gray-500 text-xs">Your AI networking companion</p>
+            <h1 className="text-xl font-bold text-gray-900">Recall</h1>
+            <p className="text-gray-500 text-xs">Your networking wingman</p>
           </div>
           <ListeningIndicator isActive={isActive} />
         </div>
@@ -183,7 +234,7 @@ export default function Home() {
         <ActiveCard
           person={activeCard}
           isListening={isActive}
-          transcriptSnippet={currentTranscript}
+          transcriptSnippet={currentTranscript.slice(currentCardStartIndex)}
         />
 
         {/* History list */}

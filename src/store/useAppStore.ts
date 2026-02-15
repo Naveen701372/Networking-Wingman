@@ -61,6 +61,7 @@ interface AppState {
   
   // Real-time
   currentTranscript: string;
+  currentCardStartIndex: number; // Track where current person's transcript starts
   
   // Actions
   startSession: () => void;
@@ -133,6 +134,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeCard: null,
   historyCards: mockHistoryCards,
   currentTranscript: '',
+  currentCardStartIndex: 0,
 
   startSession: () => {
     set({
@@ -154,7 +156,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   createNewCard: () => {
-    const { activeCard, historyCards } = get();
+    const { activeCard, historyCards, currentTranscript } = get();
     const newCard: PersonCard = {
       id: crypto.randomUUID(),
       name: null,
@@ -174,7 +176,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       historyCards: activeCard 
         ? [{ ...activeCard, isActive: false }, ...historyCards]
         : historyCards,
-      currentTranscript: '',
+      // Don't clear transcript, but mark where new person's context starts
+      currentCardStartIndex: currentTranscript.length,
     });
   },
 

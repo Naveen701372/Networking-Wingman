@@ -2,6 +2,12 @@
 
 import { PersonCard, CATEGORY_COLORS, CATEGORY_LABELS } from '@/store/useAppStore';
 
+// Generate DiceBear avatar URL from name
+function getAvatarUrl(name: string | null, style: 'shapes' | 'initials' | 'bottts' = 'shapes'): string {
+  const seed = name || 'anonymous';
+  return `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=e5e7eb`;
+}
+
 interface ActiveCardProps {
   person: PersonCard | null;
   isListening: boolean;
@@ -36,7 +42,14 @@ export function ActiveCard({ person, isListening, transcriptSnippet }: ActiveCar
       <div className="flex gap-4">
         {/* Avatar with category accent */}
         <div className="relative flex-shrink-0">
-          <div className="w-20 h-24 bg-gray-200 rounded-xl overflow-hidden">
+          <div className="w-20 h-24 bg-gray-100 rounded-xl overflow-hidden">
+            {/* Avatar image */}
+            <img 
+              src={getAvatarUrl(person?.name ?? null, 'shapes')} 
+              alt={person?.name || 'Contact'} 
+              className="w-full h-full object-cover"
+            />
+            {/* Category accent corner */}
             <div 
               className="absolute top-0 left-0 w-0 h-0 border-b-[24px] border-b-transparent"
               style={{ 
