@@ -71,6 +71,11 @@ body {
   animation: fadeIn 0.3s ease-out;
 }
 
+/* Animation delay utilities */
+.delay-1000 {
+  animation-delay: 1000ms;
+}
+
 /* Line clamp utility */
 .line-clamp-2 {
   display: -webkit-box;

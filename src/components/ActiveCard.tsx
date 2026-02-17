@@ -1,11 +1,12 @@
 'use client';
 
-import { PersonCard, CATEGORY_COLORS, CATEGORY_LABELS } from '@/store/useAppStore';
+import { PersonCard, CATEGORY_COLORS, CATEGORY_TEXT_COLORS, CATEGORY_LABELS } from '@/store/useAppStore';
 
 // Generate DiceBear avatar URL from name
-function getAvatarUrl(name: string | null, style: 'shapes' | 'initials' | 'bottts' = 'shapes'): string {
+function getAvatarUrl(name: string | null): string {
   const seed = name || 'anonymous';
-  return `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=e5e7eb`;
+  // Using 'notionists' style - creative human-like illustrations, gender-neutral
+  return `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(seed)}&backgroundColor=f3f4f6`;
 }
 
 interface ActiveCardProps {
@@ -45,7 +46,7 @@ export function ActiveCard({ person, isListening, transcriptSnippet }: ActiveCar
           <div className="w-20 h-24 bg-gray-100 rounded-xl overflow-hidden">
             {/* Avatar image */}
             <img 
-              src={getAvatarUrl(person?.name ?? null, 'shapes')} 
+              src={getAvatarUrl(person?.name ?? null)} 
               alt={person?.name || 'Contact'} 
               className="w-full h-full object-cover"
             />
@@ -80,8 +81,11 @@ export function ActiveCard({ person, isListening, transcriptSnippet }: ActiveCar
               {/* Category badge */}
               {person && (
                 <span 
-                  className="inline-block mt-1.5 px-2 py-0.5 rounded-full text-xs font-medium text-white"
-                  style={{ backgroundColor: accentColor }}
+                  className="inline-block mt-1.5 px-2 py-0.5 rounded-full text-xs font-medium"
+                  style={{ 
+                    backgroundColor: accentColor,
+                    color: CATEGORY_TEXT_COLORS[person.category]
+                  }}
                 >
                   {CATEGORY_LABELS[person.category]}
                 </span>

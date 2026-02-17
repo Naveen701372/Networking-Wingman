@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
+import { useAuth } from '@/hooks/useAuth';
 import { useAudioCapture } from '@/hooks/useAudioCapture';
 import { useDeepgramTranscription } from '@/hooks/useDeepgramTranscription';
 import { useEntityExtraction } from '@/hooks/useEntityExtraction';
@@ -10,30 +11,54 @@ import { HistoryGrid } from '@/components/HistoryGrid';
 import { SessionButton } from '@/components/SessionButton';
 import { ListeningIndicator } from '@/components/ListeningIndicator';
 import { ErrorModal } from '@/components/ErrorModal';
+import { LoginCard } from '@/components/LoginCard';
 
 export default function Home() {
+  const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
+  
   const {
     isListening,
     activeCard,
     historyCards,
     currentTranscript,
     currentCardStartIndex,
+    setUserId,
     startSession,
     endSession,
     createNewCard,
     setTranscript,
     updateActiveCard,
     addActionItem,
+    loadFromDatabase,
   } = useAppStore();
 
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
   const lastTranscriptLengthRef = useRef(0);
+  const hasLoadedRef = useRef(false);
+
+  // Set user ID in store when auth changes
+  useEffect(() => {
+    if (user) {
+      setUserId(user.id);
+    } else {
+      setUserId(null);
+    }
+  }, [user, setUserId]);
+
+  // Load history from database on mount (only when logged in)
+  useEffect(() => {
+    if (!hasLoadedRef.current && user) {
+      hasLoadedRef.current = true;
+      loadFromDatabase();
+    }
+  }, [loadFromDatabase, user]);
 
   const { extractEntities } = useEntityExtraction();
 
   // Handle transcript updates from Deepgram
-  const handleTranscript = useCallback((text: string, isFinal: boolean) => {
+  const handleTranscript = useCallback((text: string, _isFinal: boolean) => {
     // Use setTimeout to defer the state update outside of render
     setTimeout(() => {
       setTranscript(text);
@@ -148,7 +173,6 @@ export default function Home() {
   }, [currentTranscript, currentCardStartIndex, isListening, activeCard, extractEntities, updateActiveCard, addActionItem, createNewCard]);
 
   const { 
-    isConnected: isTranscribing, 
     error: transcriptionError,
     connect: connectTranscription, 
     disconnect: disconnectTranscription,
@@ -160,7 +184,7 @@ export default function Home() {
     sendAudio(chunk);
   }, [sendAudio]);
 
-  const { isCapturing, error: captureError, startCapture, stopCapture } = useAudioCapture();
+  const { isCapturing, error: captureError, audioLevels, startCapture, stopCapture } = useAudioCapture();
 
   // Handle errors via useEffect to avoid setState during render
   const error = captureError || transcriptionError;
@@ -172,6 +196,7 @@ export default function Home() {
   }, [error, showError]);
 
   const handleStartSession = useCallback(async () => {
+    setIsConnecting(true);
     try {
       // Update app state first - but DON'T create a card yet
       // Card will be created when first person is detected
@@ -189,6 +214,8 @@ export default function Home() {
       setShowError(true);
       // Clean up on error
       endSession();
+    } finally {
+      setIsConnecting(false);
     }
   }, [connectTranscription, startCapture, handleAudioChunk, startSession, endSession]);
 
@@ -215,16 +242,47 @@ export default function Home() {
 
   const isActive = isListening && isCapturing;
 
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center relative overflow-hidden">
+        <div className="absolute top-1/4 -left-32 w-64 h-64 bg-blue-200/40 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 -right-32 w-80 h-80 bg-teal-200/30 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="animate-pulse text-gray-500 z-10">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show login if not authenticated
+  if (!user) {
+    return <LoginCard onGoogleSignIn={signInWithGoogle} />;
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 pb-28">
+    <div className="min-h-screen bg-gray-50 pb-28 relative overflow-hidden">
+      {/* Subtle animated gradient orbs */}
+      <div className="fixed top-1/4 -left-32 w-64 h-64 bg-blue-200/40 rounded-full blur-3xl animate-pulse pointer-events-none" />
+      <div className="fixed bottom-1/4 -right-32 w-80 h-80 bg-teal-200/30 rounded-full blur-3xl animate-pulse delay-1000 pointer-events-none" />
+      
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-200/50">
+      <header className="sticky top-0 z-40 bg-white/70 backdrop-blur-xl border-b border-gray-200/50">
         <div className="flex items-center justify-between px-4 py-4">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Recall</h1>
             <p className="text-gray-500 text-xs">Your networking wingman</p>
           </div>
-          <ListeningIndicator isActive={isActive} />
+          <div className="flex items-center gap-3">
+            <ListeningIndicator isActive={isActive} audioLevels={audioLevels} />
+            <button
+              onClick={signOut}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              title="Sign out"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -247,6 +305,7 @@ export default function Home() {
       {/* Floating session button */}
       <SessionButton
         isActive={isActive}
+        isConnecting={isConnecting}
         onStart={handleStartSession}
         onEnd={handleEndSession}
       />

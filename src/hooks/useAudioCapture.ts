@@ -5,6 +5,7 @@ import { useState, useRef, useCallback } from 'react';
 export interface UseAudioCaptureReturn {
   isCapturing: boolean;
   error: string | null;
+  audioLevels: number[];
   startCapture: (onAudioChunk: (chunk: ArrayBuffer) => void) => Promise<void>;
   stopCapture: () => void;
 }
@@ -12,11 +13,38 @@ export interface UseAudioCaptureReturn {
 export function useAudioCapture(): UseAudioCaptureReturn {
   const [isCapturing, setIsCapturing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [audioLevels, setAudioLevels] = useState<number[]>([0, 0, 0, 0]);
   
   const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const onAudioChunkRef = useRef<((chunk: ArrayBuffer) => void) | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+
+  const updateAudioLevels = useCallback(() => {
+    if (!analyserRef.current) return;
+    
+    const analyser = analyserRef.current;
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(dataArray);
+    
+    // Split frequency data into 4 bands for the 4 bars
+    const bandSize = Math.floor(dataArray.length / 4);
+    const levels = [0, 1, 2, 3].map(i => {
+      const start = i * bandSize;
+      const end = start + bandSize;
+      let sum = 0;
+      for (let j = start; j < end; j++) {
+        sum += dataArray[j];
+      }
+      // Normalize to 0-1 range with some amplification
+      return Math.min(1, (sum / bandSize / 255) * 2.5);
+    });
+    
+    setAudioLevels(levels);
+    animationFrameRef.current = requestAnimationFrame(updateAudioLevels);
+  }, []);
 
   const startCapture = useCallback(async (onAudioChunk: (chunk: ArrayBuffer) => void) => {
     setError(null);
@@ -40,6 +68,16 @@ export function useAudioCapture(): UseAudioCaptureReturn {
       audioContextRef.current = audioContext;
 
       const source = audioContext.createMediaStreamSource(stream);
+      
+      // Create analyser for visualizing audio levels
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.7;
+      analyserRef.current = analyser;
+      source.connect(analyser);
+      
+      // Start animation loop for audio levels
+      animationFrameRef.current = requestAnimationFrame(updateAudioLevels);
       
       // Use ScriptProcessorNode to get raw audio data
       // Buffer size of 4096 gives us ~256ms chunks at 16kHz
@@ -84,9 +122,21 @@ export function useAudioCapture(): UseAudioCaptureReturn {
         setError('Failed to start audio capture. Please try again.');
       }
     }
-  }, []);
+  }, [updateAudioLevels]);
 
   const stopCapture = useCallback(() => {
+    // Cancel animation frame
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    
+    // Disconnect analyser
+    if (analyserRef.current) {
+      analyserRef.current.disconnect();
+      analyserRef.current = null;
+    }
+
     // Disconnect processor
     if (processorRef.current) {
       processorRef.current.disconnect();
@@ -107,11 +157,13 @@ export function useAudioCapture(): UseAudioCaptureReturn {
 
     onAudioChunkRef.current = null;
     setIsCapturing(false);
+    setAudioLevels([0, 0, 0, 0]);
   }, []);
 
   return {
     isCapturing,
     error,
+    audioLevels,
     startCapture,
     stopCapture,
   };

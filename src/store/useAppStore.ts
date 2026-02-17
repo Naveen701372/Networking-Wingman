@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '@/lib/supabase';
 
 export interface ActionItem {
   id: string;
@@ -17,13 +18,23 @@ export type PersonCategory =
   | 'other';     // Gray - Default/unknown
 
 export const CATEGORY_COLORS: Record<PersonCategory, string> = {
-  founder: '#EF4444',    // Red
-  vc: '#8B5CF6',         // Purple
-  developer: '#3B82F6',  // Blue
-  designer: '#EC4899',   // Pink
-  student: '#22C55E',    // Green
-  executive: '#F59E0B',  // Gold/Amber
-  other: '#6B7280',      // Gray
+  founder: '#FCA5A5',    // Pastel Red
+  vc: '#C4B5FD',         // Pastel Purple
+  developer: '#93C5FD',  // Pastel Blue
+  designer: '#F9A8D4',   // Pastel Pink
+  student: '#86EFAC',    // Pastel Green
+  executive: '#FCD34D',  // Pastel Gold/Amber
+  other: '#D1D5DB',      // Pastel Gray
+};
+
+export const CATEGORY_TEXT_COLORS: Record<PersonCategory, string> = {
+  founder: '#991B1B',    // Dark Red
+  vc: '#5B21B6',         // Dark Purple
+  developer: '#1E40AF',  // Dark Blue
+  designer: '#9D174D',   // Dark Pink
+  student: '#166534',    // Dark Green
+  executive: '#92400E',  // Dark Amber
+  other: '#374151',      // Dark Gray
 };
 
 export const CATEGORY_LABELS: Record<PersonCategory, string> = {
@@ -54,6 +65,7 @@ interface AppState {
   // Session state
   isListening: boolean;
   sessionId: string | null;
+  userId: string | null;
   
   // Cards
   activeCard: PersonCard | null;
@@ -64,6 +76,7 @@ interface AppState {
   currentCardStartIndex: number; // Track where current person's transcript starts
   
   // Actions
+  setUserId: (userId: string | null) => void;
   startSession: () => void;
   endSession: () => void;
   createNewCard: () => void;
@@ -71,6 +84,8 @@ interface AppState {
   moveActiveToHistory: () => void;
   setTranscript: (text: string) => void;
   addActionItem: (text: string) => void;
+  loadFromDatabase: () => Promise<void>;
+  setHistoryCards: (cards: PersonCard[]) => void;
 }
 
 // Helper to generate LinkedIn search URL
@@ -85,66 +100,96 @@ const generateLinkedInUrl = (name: string, company?: string | null): string => {
   return `${baseUrl}?${params.toString()}`;
 };
 
-// Mock data for UI development
-const mockHistoryCards: PersonCard[] = [
-  {
-    id: '1',
-    name: 'Roman G Pillai',
-    company: 'Kupa Creative',
-    role: 'Creative Director',
-    category: 'designer',
-    summary: 'Works as a creative director managing teams of interdisciplinary artists in the XR space. Previously worked with Meta creating AR experiences on Instagram, Snapchat and TikTok. Having collaborated with top design agencies and worked on projects with Knorr, BMW, Bajaj, etc',
-    linkedInUrl: generateLinkedInUrl('Roman Pillai', 'Kupa'),
-    actionItems: [{ id: 'a1', text: 'Send portfolio link', createdAt: new Date() }],
-    transcriptSnippet: '',
-    createdAt: new Date(Date.now() - 3600000),
-    isActive: false,
-  },
-  {
-    id: '2',
-    name: 'Priya Sharma',
-    company: 'Accel Partners',
-    role: 'Principal',
-    category: 'vc',
-    summary: 'Focuses on early-stage B2B SaaS investments in India and Southeast Asia. Previously founded a fintech startup that was acquired. Interested in AI-first products.',
-    linkedInUrl: generateLinkedInUrl('Priya Sharma', 'Accel'),
-    actionItems: [{ id: 'a2', text: 'Send pitch deck', createdAt: new Date() }],
-    transcriptSnippet: '',
-    createdAt: new Date(Date.now() - 7200000),
-    isActive: false,
-  },
-  {
-    id: '3',
-    name: 'Alex Chen',
-    company: 'Stripe',
-    role: 'Engineering Manager',
-    category: 'developer',
-    summary: 'Leading the payments infrastructure team. Interested in developer tools and API design. Previously at Google working on Cloud APIs.',
-    linkedInUrl: generateLinkedInUrl('Alex Chen', 'Stripe'),
-    actionItems: [],
-    transcriptSnippet: '',
-    createdAt: new Date(Date.now() - 10800000),
-    isActive: false,
-  },
-];
-
 export const useAppStore = create<AppState>((set, get) => ({
   isListening: false,
   sessionId: null,
+  userId: null,
   activeCard: null,
-  historyCards: mockHistoryCards,
+  historyCards: [],
   currentTranscript: '',
   currentCardStartIndex: 0,
 
+  setUserId: (userId) => {
+    set({ userId });
+  },
+
   startSession: () => {
+    const { userId } = get();
+    
+    // Create session in database
+    supabase
+      .from('sessions')
+      .insert({ is_active: true, user_id: userId })
+      .select('id')
+      .single()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Error creating session:', error);
+        } else if (data) {
+          set({ sessionId: data.id });
+        }
+      });
+
     set({
       isListening: true,
-      sessionId: crypto.randomUUID(),
+      sessionId: crypto.randomUUID(), // Temporary ID until DB returns
     });
   },
 
   endSession: () => {
-    const { activeCard, historyCards } = get();
+    const { activeCard, historyCards, sessionId, userId, currentTranscript, currentCardStartIndex } = get();
+    
+    // Save active card to database before ending
+    if (activeCard && activeCard.name) {
+      const cardTranscript = currentTranscript.slice(currentCardStartIndex);
+      supabase
+        .from('person_cards')
+        .upsert({
+          id: activeCard.id,
+          session_id: sessionId,
+          user_id: userId,
+          name: activeCard.name,
+          company: activeCard.company,
+          role: activeCard.role,
+          category: activeCard.category,
+          summary: activeCard.summary,
+          linkedin_url: activeCard.linkedInUrl,
+          transcript: cardTranscript,
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.error('Error saving card:', error);
+            return;
+          }
+          
+          // Save action items AFTER person_card is saved
+          if (activeCard.actionItems.length > 0) {
+            const actionItemsToSave = activeCard.actionItems.map(item => ({
+              id: item.id,
+              person_card_id: activeCard.id,
+              text: item.text,
+            }));
+            supabase
+              .from('action_items')
+              .upsert(actionItemsToSave)
+              .then(({ error: actionError }) => {
+                if (actionError) console.error('Error saving action items:', actionError);
+              });
+          }
+        });
+    }
+
+    // End session in database
+    if (sessionId) {
+      supabase
+        .from('sessions')
+        .update({ is_active: false, ended_at: new Date().toISOString() })
+        .eq('id', sessionId)
+        .then(({ error }) => {
+          if (error) console.error('Error ending session:', error);
+        });
+    }
+
     set({
       isListening: false,
       activeCard: null,
@@ -152,6 +197,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         ? [{ ...activeCard, isActive: false }, ...historyCards]
         : historyCards,
       currentTranscript: '',
+      currentCardStartIndex: 0,
     });
   },
 
@@ -235,5 +281,65 @@ export const useAppStore = create<AppState>((set, get) => ({
         actionItems: [...activeCard.actionItems, newItem],
       },
     });
+  },
+
+  setHistoryCards: (cards) => {
+    set({ historyCards: cards });
+  },
+
+  loadFromDatabase: async () => {
+    try {
+      // Load person cards from Supabase
+      const { data: cards, error: cardsError } = await supabase
+        .from('person_cards')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (cardsError) {
+        console.error('Error loading person cards:', cardsError);
+        return;
+      }
+
+      if (!cards || cards.length === 0) {
+        set({ historyCards: [] });
+        return;
+      }
+
+      // Load action items for all cards
+      const cardIds = cards.map(c => c.id);
+      const { data: actionItems, error: actionsError } = await supabase
+        .from('action_items')
+        .select('*')
+        .in('person_card_id', cardIds);
+
+      if (actionsError) {
+        console.error('Error loading action items:', actionsError);
+      }
+
+      // Map to PersonCard format
+      const historyCards: PersonCard[] = cards.map(card => ({
+        id: card.id,
+        name: card.name,
+        company: card.company,
+        role: card.role,
+        category: (card.category || 'other') as PersonCategory,
+        summary: card.summary,
+        linkedInUrl: card.linkedin_url,
+        actionItems: (actionItems || [])
+          .filter(a => a.person_card_id === card.id)
+          .map(a => ({
+            id: a.id,
+            text: a.text,
+            createdAt: new Date(a.created_at),
+          })),
+        transcriptSnippet: card.transcript?.slice(-200) || '',
+        createdAt: new Date(card.created_at),
+        isActive: false,
+      }));
+
+      set({ historyCards });
+    } catch (error) {
+      console.error('Error loading from database:', error);
+    }
   },
 }));
