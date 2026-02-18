@@ -13,10 +13,13 @@ export function LoginCard({ onGoogleSignIn }: LoginCardProps) {
       
       {/* Glass card */}
       <div className="relative z-10 bg-white/70 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 p-8 max-w-sm w-full">
-        {/* Logo/Title */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Recall</h1>
-          <p className="text-gray-500 text-sm">Your networking wingman</p>
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <img 
+            src="/Recall_logo.png" 
+            alt="Recall" 
+            className="h-12 w-auto"
+          />
         </div>
 
         {/* Description */}
