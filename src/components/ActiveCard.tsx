@@ -17,13 +17,7 @@ interface ActiveCardProps {
 
 export function ActiveCard({ person, isListening, transcriptSnippet }: ActiveCardProps) {
   if (!person && !isListening) {
-    return (
-      <div className="mx-4 mb-6 p-8 rounded-2xl border-2 border-dashed border-gray-300 bg-white/50 backdrop-blur-sm">
-        <p className="text-gray-400 text-center text-lg">
-          Tap "Start Listening" to capture conversations
-        </p>
-      </div>
-    );
+    return null;
   }
 
   const accentColor = person ? CATEGORY_COLORS[person.category] : CATEGORY_COLORS.other;

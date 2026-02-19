@@ -13,29 +13,54 @@ function getAvatarUrl(name: string | null): string {
 interface HistoryGridProps {
   cards: PersonCard[];
   onLinkedInClick: (card: PersonCard) => void;
+  searchQuery?: string;
 }
 
-export function HistoryGrid({ cards, onLinkedInClick }: HistoryGridProps) {
+export function HistoryGrid({ cards, onLinkedInClick, searchQuery }: HistoryGridProps) {
   if (cards.length === 0) {
-    return (
-      <div className="px-4 py-12">
-        <p className="text-gray-400 text-center text-lg">
-          No contacts captured yet. Start a session and begin networking!
-        </p>
-      </div>
-    );
+    return null;
   }
+
+  const q = (searchQuery || '').toLowerCase().trim();
+
+  // Helper: does this card match the search query?
+  const cardMatches = (card: PersonCard): boolean => {
+    if (!q) return true;
+    return [card.name, card.company, card.role, card.summary]
+      .some(field => field && field.toLowerCase().includes(q));
+  };
+
+  // Rank: 0 = name match (highest), 1 = company/role match, 2 = summary match, 3 = no match
+  const matchRank = (card: PersonCard): number => {
+    if (!q) return 0;
+    if (card.name && card.name.toLowerCase().includes(q)) return 0;
+    if ((card.company && card.company.toLowerCase().includes(q)) ||
+        (card.role && card.role.toLowerCase().includes(q))) return 1;
+    if (card.summary && card.summary.toLowerCase().includes(q)) return 2;
+    return 3;
+  };
+
+  const matchCount = q ? cards.filter(cardMatches).length : cards.length;
+
+  // When searching, sort: name matches first, then company/role, then summary, then non-matches
+  const sortedCards = q
+    ? [...cards].sort((a, b) => matchRank(a) - matchRank(b))
+    : cards;
 
   return (
     <div className="px-4 space-y-3">
       <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wide mb-4">
-        People Met ({cards.length})
+        People Met ({matchCount}{q && matchCount !== cards.length ? ` of ${cards.length}` : ''})
       </h3>
-      {cards.map((card) => (
+      {q && matchCount === 0 && (
+        <p className="text-gray-400 text-center text-sm py-4">No matches found</p>
+      )}
+      {sortedCards.map((card) => (
         <PersonCardItem 
           key={card.id} 
           card={card} 
-          onLinkedInClick={onLinkedInClick} 
+          onLinkedInClick={onLinkedInClick}
+          dimmed={q ? !cardMatches(card) : false}
         />
       ))}
     </div>
@@ -45,9 +70,10 @@ export function HistoryGrid({ cards, onLinkedInClick }: HistoryGridProps) {
 interface PersonCardItemProps {
   card: PersonCard;
   onLinkedInClick: (card: PersonCard) => void;
+  dimmed?: boolean;
 }
 
-function PersonCardItem({ card, onLinkedInClick }: PersonCardItemProps) {
+function PersonCardItem({ card, onLinkedInClick, dimmed }: PersonCardItemProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleLinkedInClick = (e: React.MouseEvent) => {
@@ -76,6 +102,7 @@ function PersonCardItem({ card, onLinkedInClick }: PersonCardItemProps) {
         hover:shadow-xl hover:scale-[1.01]
         ${isExpanded ? 'p-5' : 'p-4'}
       `}
+      style={{ opacity: dimmed ? 0.3 : 1 }}
     >
       <div className="flex gap-4">
         {/* Avatar with category accent */}

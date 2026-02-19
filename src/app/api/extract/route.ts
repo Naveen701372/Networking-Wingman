@@ -42,7 +42,30 @@ Extract the following about the OTHER person (NOT Navi):
 - isNewPerson: true ONLY if a NEW person introduces themselves with a DIFFERENT name than the current person
 - detectedEvent: If the conversation mentions a specific event, conference, meetup, or occasion (e.g., "TechSummit", "the fintech mixer", "YC Demo Day"), extract the event name. Return null if no event is mentioned or unclear.
 
-Rules:
+CONTEXT AWARENESS RULES:
+
+1. PRESERVE EXISTING DATA. If "Previously extracted data" is provided, treat those fields as established facts.
+   Only overwrite an existing field if the new transcript contains a DIRECT, EXPLICIT statement from the contact themselves.
+   Example: If existing company is "Apple" and the new transcript doesn't mention a company, keep "Apple". Do NOT clear it.
+
+2. REQUIRE DIRECT SPEECH for field updates. Only update name/company/role if the contact DIRECTLY states it:
+   - "I work at Google" → update company to Google
+   - "I'm a product manager" → update role to product manager
+   - Someone ELSE saying "she works at Google" → do NOT update (this is hearsay, not direct)
+   If the new info is inferred or ambiguous, return null for that field and let the existing data stand.
+
+3. ATTRIBUTE CAREFULLY in multi-person conversations. When multiple people are mentioned:
+   - Only extract details for the person Navi is CURRENTLY talking to
+   - If person A mentions person B's company/role, that info belongs to person B, NOT person A
+   - Do NOT mix up attributes between people mentioned in the same conversation
+
+4. NEVER DOWNGRADE SPECIFICITY. If existing data has a specific role like "Senior Designer" and new transcript
+   just says "designer", keep "Senior Designer". Only update if the new info is MORE specific.
+
+5. UNCERTAIN = NULL. When in doubt about any field, return null. It is always better to leave a field empty
+   than to fill it with a wrong guess. Incomplete cards are fine — they can be enriched later.
+
+GENERAL RULES:
 - NEVER create entries for Navi/the user
 - Only extract explicitly mentioned information
 - For category: "I founded..." = founder, "I invest..." or "partner at a fund" = vc, "I'm an engineer/researcher" = developer

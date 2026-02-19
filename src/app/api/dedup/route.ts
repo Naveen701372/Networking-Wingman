@@ -44,31 +44,47 @@ export async function POST(request: NextRequest) {
 
 Your job is to identify cards that likely refer to the SAME real person and should be merged.
 
-CRITICAL RULES FOR IDENTITY:
-- "Priya Sharma" and "Priya Chakraborty" are DIFFERENT people — different last names means different people, always.
-- "David Chen" and "David Park" are DIFFERENT people — different last names means different people, always.
-- Only consider merging when: same full name, OR first-name-only card matches a full-name card with the SAME company/role/context.
-- Two cards with just a shared first name but different last names are NEVER the same person.
+CRITICAL RULES — NEVER VIOLATE:
 
-Signals that two cards are the SAME person (merge):
-- Exact same full name AND same company (e.g., "Kwame Asante" at Figma and "Kwame Asante" at Figma)
-- First-name-only card + full-name card with matching company AND role (e.g., "Kwame" at Figma + "Kwame Asante" at Figma)
-- Same name, same company, overlapping summaries, created same day
-- Same name with one card missing company info — cautious merge OK if roles/summaries align
+1. TRUST EACH CARD'S OWN FIELDS. A card's name, company, and role are its ground truth.
+   Do NOT use mentions of a person in another card's summary to override that person's own card fields.
+   Example: If "Suki Tanaka" has company="Apple" on her own card, she works at Apple — even if
+   another card's summary mentions "Suki Tanaka at Figma". The summary is about a conversation,
+   not a correction of Suki's card.
 
-Signals that two cards are DIFFERENT people (do NOT merge):
-- Different last names — ALWAYS different people, no exceptions
-- Same full name but DIFFERENT companies — ALWAYS different people (e.g., "Priya Sharma" at Apple ≠ "Priya Sharma" at Google)
-- Same first name but different companies or roles
-- Same name but clearly different contexts/summaries from different events
-- Cards created weeks apart with no shared company/role details
+2. Different companies = DIFFERENT people. No exceptions.
+   "Suki Tanaka" at Apple ≠ "Suki Tanaka" at Figma.
+   "Priya Sharma" at Apple ≠ "Priya Sharma" at Google.
 
-Output a JSON object:
+3. Different last names = DIFFERENT people. No exceptions.
+   "Priya Sharma" ≠ "Priya Chakraborty".
+
+4. Same name + same company + different roles = DIFFERENT people. Do NOT merge.
+   "Priya Sharma" (designer) at Microsoft ≠ "Priya Sharma" (developer) at Microsoft.
+   Different roles at the same company means they are different people.
+
+5. Never merge based on one card mentioning another person in its summary.
+   Summaries describe conversations — they may reference other people by name.
+   That does NOT mean those people should be merged.
+
+MERGE only when:
+- Exact same name AND same company AND same role (or one card missing role)
+- First-name-only card + full-name card with matching company
+- Same name, one card missing company — cautious merge OK if roles align
+
+DO NOT MERGE when:
+- Different companies on their own cards
+- Different last names
+- Different roles at the same company
+- A person is only mentioned in another card's summary (not their own card)
+- Different contexts/events with no shared company
+
+Output JSON:
 {
   "merges": [
     {
-      "sourceCardId": "<id of the card to merge FROM (less complete)>",
-      "targetCardId": "<id of the card to merge INTO (more complete)>",
+      "sourceCardId": "<less complete card>",
+      "targetCardId": "<more complete card>",
       "confidence": <0-100>,
       "reason": "<brief explanation>"
     }
@@ -77,10 +93,9 @@ Output a JSON object:
 
 Rules:
 - Only propose merges with confidence 80+
-- The targetCardId should be the more complete card
-- Return empty merges array if no duplicates found
-- Do NOT chain merges (if A→B, don't also merge C→A)
-- When in doubt, do NOT merge — it's better to have two cards for the same person than to wrongly merge two different people
+- Return empty merges array if no duplicates
+- Do NOT chain merges
+- When in doubt, do NOT merge
 
 Respond ONLY with valid JSON.`;
 

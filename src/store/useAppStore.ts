@@ -96,6 +96,12 @@ interface AppState {
   // Greeting
   greetingDismissed: boolean;
   dismissGreeting: () => void;
+
+  // Search
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  isVoiceSearching: boolean;
+  setVoiceSearching: (active: boolean) => void;
   
   // Actions
   setUserId: (userId: string | null) => void;
@@ -135,6 +141,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   transcriptSegments: [],
   currentEvent: null,
   greetingDismissed: false,
+  searchQuery: '',
+  isVoiceSearching: false,
 
   setUserId: (userId) => {
     set({ userId });
@@ -146,6 +154,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   dismissGreeting: () => {
     set({ greetingDismissed: true });
+  },
+
+  setSearchQuery: (query) => {
+    set({ searchQuery: query });
+  },
+
+  setVoiceSearching: (active) => {
+    set({ isVoiceSearching: active });
   },
 
   startSession: async () => {
@@ -474,24 +490,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       const deduped: PersonCard[] = [];
       const seenByName = new Map<string, number[]>(); // normalized name -> array of indices
 
-      // Helper: check if two cards' companies are compatible (same or one is empty)
-      const companiesCompatible = (a: PersonCard, b: PersonCard): boolean => {
-        const compA = (a.company || '').toLowerCase().trim();
-        const compB = (b.company || '').toLowerCase().trim();
-        // If either has no company, we can't distinguish — allow merge
-        if (!compA || !compB) return true;
-        // Same company = same person
-        return compA === compB;
-      };
-
-      // Helper: check if two cards' roles are compatible
-      const rolesCompatible = (a: PersonCard, b: PersonCard): boolean => {
-        const roleA = (a.role || '').toLowerCase().trim();
-        const roleB = (b.role || '').toLowerCase().trim();
-        if (!roleA || !roleB) return true;
-        return roleA === roleB;
-      };
-
       // Helper: check if cardA is a partial-name duplicate of cardB
       const isPartialNameMatch = (a: PersonCard, b: PersonCard): boolean => {
         const nameA = (a.name || '').toLowerCase().trim();
@@ -522,19 +520,23 @@ export const useAppStore = create<AppState>((set, get) => ({
           continue;
         }
 
-        // Check for exact name match — but only merge if companies are compatible.
+        // Check for exact name match — but only merge if companies AND roles are compatible.
         // "Priya Sharma" at Apple ≠ "Priya Sharma" at Google.
+        // "Priya Sharma" (designer) at Microsoft ≠ "Priya Sharma" (developer) at Microsoft.
         let matchIdx: number | undefined;
         const exactIndices = seenByName.get(key) || [];
         for (const idx of exactIndices) {
           const existing = deduped[idx];
           const compA = (card.company || '').toLowerCase().trim();
           const compB = (existing.company || '').toLowerCase().trim();
-          // Merge if: same company, or at least one has no company info
-          if (!compA || !compB || compA === compB) {
-            matchIdx = idx;
-            break;
-          }
+          // Block if different companies
+          if (compA && compB && compA !== compB) continue;
+          // Block if different roles (same name + same company + different role = different people)
+          const roleA = (card.role || '').toLowerCase().trim();
+          const roleB = (existing.role || '').toLowerCase().trim();
+          if (roleA && roleB && roleA !== roleB) continue;
+          matchIdx = idx;
+          break;
         }
 
         // If no exact match, check for partial name match against all deduped cards

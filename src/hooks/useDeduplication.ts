@@ -71,10 +71,26 @@ export function useDeduplication() {
 
         // Verify both cards still exist before merging
         const { historyCards: current } = useAppStore.getState();
-        const sourceExists = current.some(c => c.id === merge.sourceCardId);
-        const targetExists = current.some(c => c.id === merge.targetCardId);
+        const sourceCard = current.find(c => c.id === merge.sourceCardId);
+        const targetCard = current.find(c => c.id === merge.targetCardId);
 
-        if (sourceExists && targetExists) {
+        if (sourceCard && targetCard) {
+          // HARD GUARD: never merge cards with different companies
+          const srcCompany = (sourceCard.company || '').toLowerCase().trim();
+          const tgtCompany = (targetCard.company || '').toLowerCase().trim();
+          if (srcCompany && tgtCompany && srcCompany !== tgtCompany) {
+            console.log(`[Dedup] BLOCKED — different companies: "${sourceCard.name}" at ${sourceCard.company} vs "${targetCard.name}" at ${targetCard.company}`);
+            continue;
+          }
+
+          // HARD GUARD: same name + same company but different roles = likely different people
+          const srcRole = (sourceCard.role || '').toLowerCase().trim();
+          const tgtRole = (targetCard.role || '').toLowerCase().trim();
+          if (srcRole && tgtRole && srcRole !== tgtRole) {
+            console.log(`[Dedup] BLOCKED — different roles: "${sourceCard.name}" (${sourceCard.role}) vs "${targetCard.name}" (${targetCard.role}) at ${sourceCard.company}`);
+            continue;
+          }
+
           console.log(`[Dedup] Merging "${merge.reason}" (confidence: ${merge.confidence})`);
           mergedCardIds.add(merge.sourceCardId);
           mergedCardIds.add(merge.targetCardId);
