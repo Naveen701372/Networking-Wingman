@@ -21,6 +21,7 @@ import { ErrorModal } from '@/components/ErrorModal';
 import { LoginCard } from '@/components/LoginCard';
 import { DailyGreetingCard, GreetingData } from '@/components/DailyGreetingCard';
 import { SearchBar } from '@/components/SearchBar';
+import { GroupCard } from '@/components/GroupCard';
 import { detectVoiceQuery, resolveVoiceQueryToName, isQueryContinuation } from '@/lib/voice-query-detector';
 
 export default function Home() {
@@ -34,6 +35,8 @@ export default function Home() {
     currentCardStartIndex,
     greetingDismissed,
     searchQuery,
+    groups,
+    setGroups,
     setUserId,
     startSession,
     endSession,
@@ -45,14 +48,17 @@ export default function Home() {
     setSearchQuery,
     setVoiceSearching,
     loadFromDatabase,
+    isLoadingHistory,
   } = useAppStore();
 
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'people' | 'groups' | 'suggests'>('people');
   const lastTranscriptLengthRef = useRef(0);
   const hasLoadedRef = useRef(false);
   const [greetingData, setGreetingData] = useState<GreetingData | null>(null);
+  const [isLoadingCards, setIsLoadingCards] = useState(false);
   const voiceQueryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const voiceQueryTextRef = useRef<string>('');
   const voiceMatchRef = useRef<string | null>(null);
@@ -70,7 +76,8 @@ export default function Home() {
   useEffect(() => {
     if (!hasLoadedRef.current && user) {
       hasLoadedRef.current = true;
-      loadFromDatabase();
+      setIsLoadingCards(true);
+      loadFromDatabase().finally(() => setIsLoadingCards(false));
     }
   }, [loadFromDatabase, user]);
 
@@ -105,6 +112,26 @@ export default function Home() {
   useReconciliation();
   useDeduplication();
   useAutoPersist();
+
+  // Fetch group suggestions when we have enough contacts
+  const groupFetchedRef = useRef(false);
+  useEffect(() => {
+    if (historyCards.length <= 5 || isListening || groupFetchedRef.current) return;
+    groupFetchedRef.current = true;
+
+    fetch('/api/group', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contacts: historyCards }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.groups && data.groups.length > 0) {
+          setGroups(data.groups);
+        }
+      })
+      .catch(err => console.error('Failed to fetch groups:', err));
+  }, [historyCards, isListening, setGroups]);
 
   // Handle transcript updates from Deepgram
   const handleTranscript = useCallback((text: string, isFinal: boolean) => {
@@ -492,12 +519,86 @@ export default function Home() {
           transcriptSnippet={currentTranscript.slice(currentCardStartIndex)}
         />
 
-        {/* History list */}
-        <HistoryGrid
-          cards={historyCards}
-          onLinkedInClick={handleLinkedInClick}
-          searchQuery={searchQuery}
-        />
+        {/* Content based on active tab */}
+        {!isListening && groups.length > 0 && (activeTab === 'groups' || activeTab === 'suggests') ? (
+          <div className="px-4 space-y-3 animate-section-in">
+            {/* Tab header — replicated from HistoryGrid style */}
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
+              <button
+                onClick={() => setActiveTab('people')}
+                className="text-sm font-medium uppercase tracking-wide text-gray-400 hover:text-gray-500 transition-colors duration-200"
+              >
+                People Met ({historyCards.length})
+              </button>
+              <span className="text-gray-300">|</span>
+              <button
+                onClick={() => setActiveTab('groups')}
+                className={`text-sm font-medium uppercase tracking-wide transition-colors duration-200 ${
+                  activeTab === 'groups' ? 'text-gray-900' : 'text-gray-400 hover:text-gray-500'
+                }`}
+              >
+                Groups ({groups.filter(g => g.type !== 'topic' && g.type !== 'custom').length})
+              </button>
+              <span className="text-gray-300">|</span>
+              <button
+                onClick={() => setActiveTab('suggests')}
+                className={`text-sm font-medium uppercase tracking-wide transition-colors duration-200 ${
+                  activeTab === 'suggests' ? 'text-gray-900' : 'text-gray-400 hover:text-gray-500'
+                }`}
+              >
+                Recall ({groups.filter(g => g.type === 'topic' || g.type === 'custom').length})
+              </button>
+            </div>
+
+            {/* Groups tab — deterministic groups only */}
+            {activeTab === 'groups' && (
+              <div className="space-y-3 animate-section-in">
+                {groups.filter(g => g.type !== 'topic' && g.type !== 'custom').map((group, idx) => (
+                  <div key={`det-${group.label}-${idx}`} className="animate-card-in" style={{ animationDelay: `${idx * 60}ms` }}>
+                    <GroupCard
+                      group={group}
+                      cards={historyCards}
+                      onLinkedInClick={handleLinkedInClick}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Recall Suggests tab — AI groups only */}
+            {activeTab === 'suggests' && (
+              <div className="space-y-3 animate-section-in">
+                {groups.filter(g => g.type === 'topic' || g.type === 'custom').length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400 text-sm">Recall suggestions appear after meeting 6+ people.</p>
+                    <p className="text-gray-300 text-xs mt-1">AI finds hidden connections between your contacts.</p>
+                  </div>
+                ) : (
+                  groups.filter(g => g.type === 'topic' || g.type === 'custom').map((group, idx) => (
+                    <div key={`ai-${group.label}-${idx}`} className="animate-card-in" style={{ animationDelay: `${idx * 60}ms` }}>
+                      <GroupCard
+                        group={group}
+                        cards={historyCards}
+                        onLinkedInClick={handleLinkedInClick}
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <HistoryGrid
+            cards={historyCards}
+            onLinkedInClick={handleLinkedInClick}
+            searchQuery={searchQuery}
+            activeTab={activeTab}
+            onTabChange={!isListening && groups.length > 0 ? setActiveTab : undefined}
+            groupCount={groups.filter(g => g.type !== 'topic' && g.type !== 'custom').length}
+            suggestsCount={groups.filter(g => g.type === 'topic' || g.type === 'custom').length}
+            isLoading={isLoadingCards}
+          />
+        )}
       </main>
 
       {/* Floating session button */}

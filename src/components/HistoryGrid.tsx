@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PersonCard, CATEGORY_COLORS, CATEGORY_TEXT_COLORS, CATEGORY_LABELS } from '@/store/useAppStore';
 
 // Generate DiceBear avatar URL from name
@@ -14,9 +14,45 @@ interface HistoryGridProps {
   cards: PersonCard[];
   onLinkedInClick: (card: PersonCard) => void;
   searchQuery?: string;
+  activeTab?: 'people' | 'groups' | 'suggests';
+  onTabChange?: (tab: 'people' | 'groups' | 'suggests') => void;
+  groupCount?: number;
+  suggestsCount?: number;
+  isLoading?: boolean;
 }
 
-export function HistoryGrid({ cards, onLinkedInClick, searchQuery }: HistoryGridProps) {
+export function HistoryGrid({ cards, onLinkedInClick, searchQuery, activeTab, onTabChange, groupCount, suggestsCount, isLoading }: HistoryGridProps) {
+  // Track when cards first appear for staggered animation
+  const [visibleCount, setVisibleCount] = useState(0);
+
+  useEffect(() => {
+    if (cards.length > visibleCount) {
+      // Stagger reveal: show cards one by one with a small delay
+      const timer = setTimeout(() => {
+        setVisibleCount(prev => Math.min(prev + 1, cards.length));
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [cards.length, visibleCount]);
+
+  // Reset visible count when cards change significantly (e.g. search)
+  useEffect(() => {
+    if (cards.length === 0) setVisibleCount(0);
+  }, [cards.length]);
+
+  if (isLoading) {
+    return (
+      <div className="px-4 py-12 flex flex-col items-center justify-center gap-4">
+        <div className="flex items-end gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-gray-400 animate-pixar-dot-1" />
+          <div className="w-3 h-3 rounded-full bg-gray-400 animate-pixar-dot-2" />
+          <div className="w-3 h-3 rounded-full bg-gray-400 animate-pixar-dot-3" />
+        </div>
+        <p className="text-gray-400 text-sm">Loading your contacts...</p>
+      </div>
+    );
+  }
+
   if (cards.length === 0) {
     return null;
   }
@@ -47,21 +83,67 @@ export function HistoryGrid({ cards, onLinkedInClick, searchQuery }: HistoryGrid
     ? [...cards].sort((a, b) => matchRank(a) - matchRank(b))
     : cards;
 
+  const showTabs = onTabChange && groupCount !== undefined && groupCount > 0;
+
   return (
     <div className="px-4 space-y-3">
-      <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wide mb-4">
-        People Met ({matchCount}{q && matchCount !== cards.length ? ` of ${cards.length}` : ''})
-      </h3>
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        {showTabs ? (
+          <>
+            <button
+              onClick={() => onTabChange('people')}
+              className={`text-sm font-medium uppercase tracking-wide transition-colors duration-200 ${
+                activeTab === 'people'
+                  ? 'text-gray-900'
+                  : 'text-gray-400 hover:text-gray-500'
+              }`}
+            >
+              People Met ({matchCount}{q && matchCount !== cards.length ? `/${cards.length}` : ''})
+            </button>
+            <span className="text-gray-300">|</span>
+            <button
+              onClick={() => onTabChange('groups')}
+              className={`text-sm font-medium uppercase tracking-wide transition-colors duration-200 ${
+                activeTab === 'groups'
+                  ? 'text-gray-900'
+                  : 'text-gray-400 hover:text-gray-500'
+              }`}
+            >
+              Groups ({groupCount})
+            </button>
+            <span className="text-gray-300">|</span>
+            <button
+              onClick={() => onTabChange('suggests')}
+              className={`text-sm font-medium uppercase tracking-wide transition-colors duration-200 ${
+                activeTab === 'suggests'
+                  ? 'text-gray-900'
+                  : 'text-gray-400 hover:text-gray-500'
+              }`}
+            >
+              Recall ({suggestsCount || 0})
+            </button>
+          </>
+        ) : (
+          <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wide">
+            People Met ({matchCount}{q && matchCount !== cards.length ? ` of ${cards.length}` : ''})
+          </h3>
+        )}
+      </div>
       {q && matchCount === 0 && (
         <p className="text-gray-400 text-center text-sm py-4">No matches found</p>
       )}
-      {sortedCards.map((card) => (
-        <PersonCardItem 
-          key={card.id} 
-          card={card} 
-          onLinkedInClick={onLinkedInClick}
-          dimmed={q ? !cardMatches(card) : false}
-        />
+      {sortedCards.map((card, index) => (
+        <div
+          key={card.id}
+          className={`animate-card-enter ${index < visibleCount ? '' : 'opacity-0'}`}
+          style={{ animationDelay: `${Math.min(index, 15) * 60}ms` }}
+        >
+          <PersonCardItem 
+            card={card} 
+            onLinkedInClick={onLinkedInClick}
+            dimmed={q ? !cardMatches(card) : false}
+          />
+        </div>
       ))}
     </div>
   );
@@ -155,7 +237,7 @@ function PersonCardItem({ card, onLinkedInClick, dimmed }: PersonCardItemProps) 
             {/* Expand/Collapse button */}
             <button 
               onClick={(e) => { e.stopPropagation(); toggleExpand(); }}
-              className="w-10 h-10 bg-gray-400/80 rounded-lg flex items-center justify-center flex-shrink-0 ml-2"
+              className="w-8 h-8 bg-gray-400/80 rounded-lg flex items-center justify-center flex-shrink-0 ml-2"
               aria-label={isExpanded ? 'Collapse' : 'Expand'}
             >
               <ChevronIcon isExpanded={isExpanded} />
@@ -164,7 +246,11 @@ function PersonCardItem({ card, onLinkedInClick, dimmed }: PersonCardItemProps) 
 
           {/* Summary - always visible but truncated when collapsed */}
           <p className={`text-gray-600 text-sm mt-3 leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
-            {card.summary || 'Conversation summary will appear here...'}
+            {(() => {
+              const summary = card.summary || 'Conversation summary will appear here...';
+              const limit = isExpanded ? 500 : 250;
+              return summary.length > limit ? summary.slice(0, limit) + '…' : summary;
+            })()}
           </p>
 
           {/* Expanded content */}
@@ -222,7 +308,7 @@ function PersonCardItem({ card, onLinkedInClick, dimmed }: PersonCardItemProps) 
 function ChevronIcon({ isExpanded }: { isExpanded: boolean }) {
   return (
     <svg 
-      className={`w-5 h-5 text-white transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} 
+      className={`w-4 h-4 text-white transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} 
       fill="none" 
       stroke="currentColor" 
       viewBox="0 0 24 24"

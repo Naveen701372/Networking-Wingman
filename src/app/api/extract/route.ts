@@ -141,6 +141,14 @@ Extract entities as JSON:`;
         entities.name = undefined;
       }
       
+      // Cap summary to ~200 chars to prevent bloated cards
+      if (entities.summary && entities.summary.length > 200) {
+        // Trim to last complete sentence within 200 chars
+        const trimmed = entities.summary.slice(0, 200);
+        const lastPeriod = trimmed.lastIndexOf('.');
+        entities.summary = lastPeriod > 50 ? trimmed.slice(0, lastPeriod + 1) : trimmed + '…';
+      }
+      
       // Filter out empty/whitespace-only action items
       if (entities.actionItems) {
         entities.actionItems = entities.actionItems.filter(

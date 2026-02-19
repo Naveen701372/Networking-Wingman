@@ -63,6 +63,15 @@ export interface PersonCard {
   isActive: boolean;
 }
 
+export interface GroupSuggestion {
+  label: string;
+  type: 'company' | 'category' | 'event' | 'time' | 'topic' | 'custom';
+  cardIds: string[];
+  count: number;
+  reason?: string;
+  emoji?: string;
+}
+
 export interface TranscriptSegment {
   id: string;
   sessionId: string;
@@ -77,6 +86,7 @@ interface AppState {
   isListening: boolean;
   sessionId: string | null;
   userId: string | null;
+  isLoadingHistory: boolean;
   
   // Cards
   activeCard: PersonCard | null;
@@ -96,6 +106,12 @@ interface AppState {
   // Greeting
   greetingDismissed: boolean;
   dismissGreeting: () => void;
+
+  // Groups
+  groups: GroupSuggestion[];
+  setGroups: (groups: GroupSuggestion[]) => void;
+  expandedGroupId: string | null;
+  toggleGroup: (groupId: string) => void;
 
   // Search
   searchQuery: string;
@@ -134,6 +150,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isListening: false,
   sessionId: null,
   userId: null,
+  isLoadingHistory: false,
   activeCard: null,
   historyCards: [],
   currentTranscript: '',
@@ -143,6 +160,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   greetingDismissed: false,
   searchQuery: '',
   isVoiceSearching: false,
+  groups: [],
+  expandedGroupId: null,
 
   setUserId: (userId) => {
     set({ userId });
@@ -164,16 +183,37 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isVoiceSearching: active });
   },
 
+  setGroups: (groups) => {
+    set({ groups });
+  },
+
+  toggleGroup: (groupId) => {
+    const { expandedGroupId } = get();
+    set({ expandedGroupId: expandedGroupId === groupId ? null : groupId });
+  },
+
   startSession: async () => {
     const { userId } = get();
     
     set({ isListening: true });
 
-    const { data, error } = await supabase
+    // Try with user_id first, fall back without it if column doesn't exist
+    let { data, error } = await supabase
       .from('sessions')
       .insert({ is_active: true, user_id: userId })
       .select('id')
       .single();
+
+    if (error) {
+      // Retry without user_id in case the column doesn't exist yet
+      const retry = await supabase
+        .from('sessions')
+        .insert({ is_active: true })
+        .select('id')
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error('Error creating session:', error);
@@ -189,32 +229,23 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // End session in database
     if (sessionId) {
-      const updateData: Record<string, unknown> = {
-        is_active: false,
-        ended_at: new Date().toISOString(),
-      };
-      // Only include event_name if detected — will gracefully retry without it
-      // if the column doesn't exist yet (user needs to run migration)
-      if (currentEvent) {
-        updateData.event_name = currentEvent;
-      }
-
+      // Always update with safe fields first
       supabase
         .from('sessions')
-        .update(updateData)
+        .update({ is_active: false, ended_at: new Date().toISOString() })
         .eq('id', sessionId)
         .then(({ error }) => {
-          if (error) {
-            // Likely event_name column doesn't exist — retry without it
-            supabase
-              .from('sessions')
-              .update({ is_active: false, ended_at: new Date().toISOString() })
-              .eq('id', sessionId)
-              .then(({ error: retryError }) => {
-                if (retryError) console.error('[Session] Error ending session:', retryError);
-              });
-          }
+          if (error) console.error('[Session] Error ending session:', error);
         });
+
+      // Separately try to set event_name if detected (column may not exist)
+      if (currentEvent) {
+        supabase
+          .from('sessions')
+          .update({ event_name: currentEvent })
+          .eq('id', sessionId)
+          .then(() => { /* silently ignore if column doesn't exist */ });
+      }
     }
 
     // Auto-persist hook will handle saving the active card via the store change
@@ -420,6 +451,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   loadFromDatabase: async () => {
+    set({ isLoadingHistory: true });
     try {
       const { userId } = get();
       
@@ -636,6 +668,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     } catch (error) {
       console.error('Error loading from database:', error);
+    } finally {
+      set({ isLoadingHistory: false });
     }
   },
 }));
