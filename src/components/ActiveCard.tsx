@@ -113,11 +113,11 @@ export function ActiveCard({ person, isListening, transcriptSnippet }: ActiveCar
           )}
 
           {/* Action items */}
-          {person?.actionItems && person.actionItems.length > 0 && (
+          {person?.actionItems && person.actionItems.filter(item => item && item.text).length > 0 && (
             <div className="flex flex-wrap gap-2 mt-3">
-              {person.actionItems.map((item) => (
+              {person.actionItems.filter(item => item && item.text).map((item, index) => (
                 <span
-                  key={item.id}
+                  key={`${person.id}-action-${index}`}
                   className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm"
                 >
                   📋 {item.text}
@@ -125,6 +125,7 @@ export function ActiveCard({ person, isListening, transcriptSnippet }: ActiveCar
               ))}
             </div>
           )}
+
         </div>
       </div>
     </div>

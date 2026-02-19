@@ -1,0 +1,73 @@
+Hey there! I'm Navi. Great event, right? What do you do?
+Hi Navi! I'm Priya Chakraborty. I'm the founder of Lumina Health. We're building an AI diagnostic platform for rural clinics in Southeast Asia.
+That sounds incredible. What kind of diagnostics?
+Mostly imaging-based. We use computer vision to analyze X-rays and retinal scans. Our model can detect diabetic retinopathy with ninety-four percent accuracy, which is on par with specialist ophthalmologists.
+How do the clinics access it? I imagine connectivity is a challenge.
+Exactly. We built the whole thing to run offline on a tablet. The model is compressed to about two hundred megabytes. Clinics sync results when they get connectivity, but the diagnosis happens locally.
+That's really smart engineering. How big is your team?
+We're twelve people. Seven engineers, three clinical advisors, and two on operations. We just closed our Series A, actually. Eight million from Sequoia Southeast Asia.
+Congrats on the raise. What's next for you?
+We're expanding to India next quarter. There are about six hundred thousand villages with no access to specialist care. If we can get tablets into even ten percent of those, that's a massive impact.
+I work at a health tech startup too, well adjacent. I'm building a real-time conversation tool that captures networking contacts automatically.
+Oh that's cool. Like what you're doing right now?
+Ha, exactly like what I'm doing right now. It listens and extracts who I'm talking to.
+You should talk to my advisor Dr. Rajan Mehta at Stanford. He's doing research on AI assistants for healthcare workers. Similar real-time processing challenges. I'll connect you two.
+That would be amazing. I'll follow up with you this week about that intro.
+Perfect. Also, I'm speaking on a panel tomorrow about AI for social impact. Room 3A at eleven. You should come.
+I'll be there. Thanks Priya.
+
+Hey! Mind if I sit here? I'm Navi.
+Go for it! I'm Kwame Asante. I'm a senior engineer at Stripe. I work on their fraud detection systems.
+Oh nice. What does fraud detection look like at Stripe's scale?
+It's wild. We process about a billion transactions a month. Our ML models evaluate each one in under fifty milliseconds. We're catching about ninety-nine point seven percent of fraudulent transactions before they complete.
+What kind of models are you running?
+We use an ensemble approach. Gradient boosted trees for the fast path, then a transformer-based model for the complex cases. The transformer looks at the full transaction history and behavioral patterns.
+That latency constraint is interesting. I'm building something with similar real-time requirements. It's a conversation intelligence tool that processes audio live and extracts contact information.
+How are you handling the extraction accuracy? NLP on conversational speech is notoriously messy.
+It's definitely the hardest part. We use an LLM to extract structured entities from the transcript. The accuracy improves as the conversation goes on because we get more context.
+Smart. You should look into our approach for confidence scoring. We assign a confidence value to every fraud decision and route low-confidence cases to human review. Same pattern could work for your entity extraction.
+That's actually really close to something we just built. We have a reconciliation agent that reviews extractions and assigns confidence scores. High confidence changes get auto-applied, medium ones show as suggestions.
+Oh nice, so you're already doing it. What thresholds are you using?
+Ninety for auto-apply, sixty to ninety for suggestions, below sixty we discard.
+Those are reasonable. At Stripe we use similar bands but we also factor in the cost of being wrong. A false positive on a ten dollar transaction is very different from a ten thousand dollar one.
+Good point. I should think about weighting by importance. Hey, are you going to the fintech mixer tonight?
+Yeah, I'll be there. My colleague Fatima is organizing it actually. She runs developer relations at Stripe.
+I'd love to meet her. Can you introduce us?
+Absolutely. I'll text her right now. She's always looking for interesting developer tools to feature.
+That would be huge. I'll send you my demo link tonight so you can share it with her.
+Do it. Also, we're hiring on the ML platform team if you know anyone. Fully remote, great comp.
+I might know a couple people. I'll send some names your way this week.
+
+Oh hey, are you also waiting for the workshop? I'm Navi.
+Yeah, the generative AI one right? I'm Suki Tanaka. I'm a design lead at Figma. I run the AI features design team.
+Oh awesome. I love Figma. What AI features are you working on?
+We just shipped AI-powered auto-layout suggestions. When you're designing a component, the AI analyzes your design system and suggests layout patterns that match your existing style. It's been really popular.
+How do you handle the subjective nature of design? Like, what counts as a good suggestion?
+Great question. We trained on millions of Figma files with high engagement, files that got lots of views, forks, and positive reactions. So the model learned what designers actually like, not just what's technically correct.
+That's a clever training signal. I'm building an AI tool for networking events. It captures conversations and builds contact cards. The design challenge is making it feel warm and not creepy.
+Oh that's a fascinating design problem. How do you handle the trust factor?
+We lean into transparency. The app shows exactly what it's capturing in real-time. There's a live transcript view and the extracted information appears on cards as it's detected. Nothing happens in the background that you can't see.
+That's the right approach. At Figma we have a similar philosophy with our AI features. Every suggestion shows its reasoning. Users can see why the AI made a particular recommendation.
+I love that. We're also adding suggestion pills for medium-confidence extractions. So if the AI isn't sure about something, it shows a little pill that says like "Recall thinks this person works at Google" and you can accept or dismiss.
+That's good UX. The dismiss action is important. It gives users agency. One thing I'd suggest is adding a subtle animation when the pill appears. A gentle slide-in from the bottom feels less jarring than a pop-in.
+We actually just implemented exactly that. Slide-in from bottom with a fade-out on dismiss.
+Perfect. Hey, I'd love to see a demo sometime. I'm always looking for interesting AI interaction patterns to study.
+I can show you right now actually. Or I can send you a recording later.
+Let's do it later. I want to focus on the workshop. Send me a Loom video and I'll give you detailed design feedback.
+That would be incredibly valuable. I'll record it this weekend and send it over.
+Here's my email. Also, I'm co-organizing a design and AI meetup next month in San Francisco. You should come present.
+I'd love that. Send me the details and I'll submit a talk proposal.
+Will do. Nice meeting you Navi.
+
+Navi! Hey, it's Kwame again. From Stripe.
+Kwame! Hey, how was the fintech mixer?
+It was great. I talked to Fatima about your project and she's really interested. She wants to do a feature on the Stripe developer blog about real-time AI tools.
+That's amazing. What does she need from me?
+She said just send her a short write-up of your architecture and a demo video. I'll forward you her email. Oh, and I forgot to mention earlier, I also do some angel investing on the side. If you're raising, I'd be interested in hearing your pitch.
+I'm actually starting to think about fundraising. We're pre-seed right now. Let me put together a deck and I'll send it your way.
+Sounds good. Also, I ran into someone you should meet. Her name is Dr. Amara Osei. She's a professor at Georgia Tech working on real-time speech processing. Very relevant to what you're building.
+Oh that's perfect. Can you make an intro?
+Already told her about you. She said she's free Thursday afternoon. I'll set up a group chat.
+You're the best, Kwame. Three intros in one day.
+Ha, that's what conferences are for. See you at the closing keynote?
+Wouldn't miss it. See you there.

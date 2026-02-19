@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useCallback } from 'react';
-import { PersonCard, PersonCategory } from '@/store/useAppStore';
+import { PersonCard, PersonCategory, useAppStore } from '@/store/useAppStore';
 
 interface ExtractedEntities {
   name?: string;
@@ -11,6 +11,7 @@ interface ExtractedEntities {
   summary?: string;
   actionItems?: string[];
   isNewPerson?: boolean;
+  detectedEvent?: string;
 }
 
 interface UseEntityExtractionReturn {
@@ -59,6 +60,7 @@ export function useEntityExtraction(): UseEntityExtractionReturn {
             category: existingData.category,
             summary: existingData.summary,
           } : undefined,
+          eventContext: useAppStore.getState().currentEvent || undefined,
         }),
       });
 
@@ -68,7 +70,14 @@ export function useEntityExtraction(): UseEntityExtractionReturn {
       }
 
       const data = await response.json();
-      return data.entities || null;
+      const entities = data.entities || null;
+
+      // Auto-detect event context from conversation (store in memory only)
+      if (entities?.detectedEvent && !useAppStore.getState().currentEvent) {
+        useAppStore.getState().setCurrentEvent(entities.detectedEvent);
+      }
+
+      return entities;
 
     } catch (error) {
       console.error('Entity extraction error:', error);

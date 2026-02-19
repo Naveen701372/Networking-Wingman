@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Recall - Your Networking Wingman",
   description: "AI-powered conversation companion that turns networking chaos into structured contacts",
+  icons: {
+    icon: '/icon.svg',
+  },
 };
 
 export default function RootLayout({

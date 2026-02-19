@@ -5,13 +5,21 @@ import { useAppStore } from '@/store/useAppStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useAudioCapture } from '@/hooks/useAudioCapture';
 import { useDeepgramTranscription } from '@/hooks/useDeepgramTranscription';
+import { useSimulatedTranscription } from '@/hooks/useSimulatedTranscription';
+
+const IS_SIMULATION = process.env.NEXT_PUBLIC_SIMULATION_MODE === 'true';
 import { useEntityExtraction } from '@/hooks/useEntityExtraction';
+import { useTranscriptStorage } from '@/hooks/useTranscriptStorage';
+import { useReconciliation } from '@/hooks/useReconciliation';
+import { useDeduplication } from '@/hooks/useDeduplication';
+import { useAutoPersist } from '@/hooks/useAutoPersist';
 import { ActiveCard } from '@/components/ActiveCard';
 import { HistoryGrid } from '@/components/HistoryGrid';
 import { SessionButton } from '@/components/SessionButton';
 import { ListeningIndicator } from '@/components/ListeningIndicator';
 import { ErrorModal } from '@/components/ErrorModal';
 import { LoginCard } from '@/components/LoginCard';
+import { DailyGreetingCard, GreetingData } from '@/components/DailyGreetingCard';
 
 export default function Home() {
   const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
@@ -22,6 +30,7 @@ export default function Home() {
     historyCards,
     currentTranscript,
     currentCardStartIndex,
+    greetingDismissed,
     setUserId,
     startSession,
     endSession,
@@ -29,6 +38,7 @@ export default function Home() {
     setTranscript,
     updateActiveCard,
     addActionItem,
+    dismissGreeting,
     loadFromDatabase,
   } = useAppStore();
 
@@ -37,6 +47,7 @@ export default function Home() {
   const [isConnecting, setIsConnecting] = useState(false);
   const lastTranscriptLengthRef = useRef(0);
   const hasLoadedRef = useRef(false);
+  const [greetingData, setGreetingData] = useState<GreetingData | null>(null);
 
   // Set user ID in store when auth changes
   useEffect(() => {
@@ -55,15 +66,50 @@ export default function Home() {
     }
   }, [loadFromDatabase, user]);
 
+  // Auto-dismiss greeting when listening starts
+  useEffect(() => {
+    if (isListening && greetingData) {
+      setGreetingData(null);
+      dismissGreeting();
+    }
+  }, [isListening, greetingData, dismissGreeting]);
+
+  // Fetch daily greeting on mount (only before any session starts)
+  useEffect(() => {
+    if (!user || greetingDismissed || isListening) return;
+    const firstName = (user.user_metadata?.full_name || user.user_metadata?.name || '').split(' ')[0] || 'there';
+    fetch('/api/greeting', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id, userName: firstName }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.greeting && !data.alreadyShown) {
+          setGreetingData(data.greeting);
+        }
+      })
+      .catch(err => console.error('Failed to fetch greeting:', err));
+  }, [user, greetingDismissed, isListening]);
+
   const { extractEntities } = useEntityExtraction();
+  const { storeSegment, reset: resetTranscriptStorage } = useTranscriptStorage();
+  useReconciliation();
+  useDeduplication();
+  useAutoPersist();
 
   // Handle transcript updates from Deepgram
-  const handleTranscript = useCallback((text: string, _isFinal: boolean) => {
+  const handleTranscript = useCallback((text: string, isFinal: boolean) => {
     // Use setTimeout to defer the state update outside of render
     setTimeout(() => {
       setTranscript(text);
+      // Store final transcript segments with speaker attribution
+      if (isFinal) {
+        const { sessionId, activeCard } = useAppStore.getState();
+        storeSegment(text, sessionId, activeCard?.id ?? null);
+      }
     }, 0);
-  }, [setTranscript]);
+  }, [setTranscript, storeSegment]);
 
   // Extract entities when transcript grows significantly
   useEffect(() => {
@@ -88,8 +134,12 @@ export default function Home() {
     extractEntities(currentPersonTranscript, activeCard || undefined).then((entities) => {
       if (!entities) return;
 
+      // Skip if the detected name is the user themselves
+      const selfNames = ['navi'];
+      const isSelf = entities.name && selfNames.includes(entities.name.toLowerCase().trim());
+
       // If no active card yet and we detected a name, create the first card
-      if (!activeCard && entities.name) {
+      if (!activeCard && entities.name && !isSelf) {
         createNewCard();
         // Apply the extracted data to the new card after a tick
         setTimeout(() => {
@@ -111,10 +161,48 @@ export default function Home() {
       if (!activeCard) return;
 
       // Check if this is a new person - create new card and move current to history
-      if (entities.isNewPerson && activeCard.name) {
-        // Only switch if current card has a name (meaning we captured someone)
+      if (entities.isNewPerson && activeCard.name && !isSelf) {
+        // Check if this "new person" already has a card IN THE SAME SESSION (duplicate detection)
+        // Same name at different events = different people, same name in same session = duplicate
+        const { sessionId } = useAppStore.getState();
+        const existingCard = historyCards.find(c => 
+          c.name && entities.name && 
+          c.sessionId === sessionId &&
+          c.name.toLowerCase().trim() === entities.name.toLowerCase().trim()
+        );
+        
+        if (existingCard) {
+          // Same person detected again — merge into existing card instead of creating duplicate
+          // Move current active card to history first
+          createNewCard();
+          lastTranscriptLengthRef.current = 0;
+          
+          // Merge the new info into the existing history card
+          const { historyCards: currentHistory } = useAppStore.getState();
+          const mergedHistory = currentHistory.map(c => {
+            if (c.id !== existingCard.id) return c;
+            return {
+              ...c,
+              company: entities.company || c.company,
+              role: entities.role || c.role,
+              category: entities.category && entities.category !== 'other' ? entities.category : c.category,
+              summary: entities.summary 
+                ? (c.summary ? `${c.summary}. ${entities.summary}` : entities.summary)
+                : c.summary,
+              actionItems: [
+                ...c.actionItems,
+                ...(entities.actionItems || [])
+                  .filter(item => item && !c.actionItems.some(ai => ai.text && ai.text.toLowerCase() === item.toLowerCase()))
+                  .map(item => ({ id: crypto.randomUUID(), text: item, createdAt: new Date() })),
+              ],
+            };
+          });
+          useAppStore.setState({ historyCards: mergedHistory });
+          return;
+        }
+        
+        // Genuinely new person — create new card
         createNewCard();
-        // Reset transcript length tracking for new card
         lastTranscriptLengthRef.current = 0;
         
         // Apply new person's data after card is created
@@ -137,7 +225,7 @@ export default function Home() {
       // Update the active card with extracted entities
       const updates: Record<string, unknown> = {};
       
-      if (entities.name && !activeCard.name) {
+      if (entities.name && !activeCard.name && !isSelf) {
         updates.name = entities.name;
       }
       if (entities.company && !activeCard.company) {
@@ -160,10 +248,22 @@ export default function Home() {
       // Add action items
       if (entities.actionItems && entities.actionItems.length > 0) {
         entities.actionItems.forEach((item) => {
-          // Check if action item already exists
-          const exists = activeCard.actionItems.some(
-            (existing) => existing.text.toLowerCase() === item.toLowerCase()
-          );
+          if (!item || typeof item !== 'string' || item.trim().length === 0) return;
+          
+          // Extract key words for fuzzy matching (remove stop words)
+          const stopWords = new Set(['the', 'a', 'an', 'to', 'and', 'or', 'i', 'my', 'me', 'will', 'ill', "i'll", 'them', 'their', 'this', 'that', 'over', 'with', 'for', 'on', 'at', 'by']);
+          const getKeyWords = (text: string) => 
+            text.toLowerCase().trim().split(/\s+/).filter(w => !stopWords.has(w) && w.length > 2);
+          
+          const newKeyWords = getKeyWords(item);
+          
+          const exists = activeCard.actionItems.some((existing) => {
+            if (!existing.text) return false;
+            const existingKeyWords = getKeyWords(existing.text);
+            // Check if >50% of key words overlap
+            const overlap = newKeyWords.filter(w => existingKeyWords.some(ew => ew.includes(w) || w.includes(ew)));
+            return overlap.length >= Math.min(newKeyWords.length, existingKeyWords.length) * 0.5;
+          });
           if (!exists) {
             addActionItem(item);
           }
@@ -172,14 +272,16 @@ export default function Home() {
     });
   }, [currentTranscript, currentCardStartIndex, isListening, activeCard, extractEntities, updateActiveCard, addActionItem, createNewCard]);
 
-  const { 
-    error: transcriptionError,
-    connect: connectTranscription, 
-    disconnect: disconnectTranscription,
-    sendAudio 
-  } = useDeepgramTranscription(handleTranscript);
+  // Both hooks must always be called (React rules), but only one is active
+  const deepgram = useDeepgramTranscription(IS_SIMULATION ? () => {} : handleTranscript);
+  const simulated = useSimulatedTranscription(IS_SIMULATION ? handleTranscript : () => {});
 
-  // Handle audio chunks - send to Deepgram
+  const transcriptionError = IS_SIMULATION ? simulated.error : deepgram.error;
+  const connectTranscription = IS_SIMULATION ? simulated.connect : deepgram.connect;
+  const disconnectTranscription = IS_SIMULATION ? simulated.disconnect : deepgram.disconnect;
+  const sendAudio = deepgram.sendAudio;
+
+  // Handle audio chunks - send to Deepgram (no-op in simulation mode)
   const handleAudioChunk = useCallback((chunk: ArrayBuffer) => {
     sendAudio(chunk);
   }, [sendAudio]);
@@ -187,7 +289,7 @@ export default function Home() {
   const { isCapturing, error: captureError, audioLevels, startCapture, stopCapture } = useAudioCapture();
 
   // Handle errors via useEffect to avoid setState during render
-  const error = captureError || transcriptionError;
+  const error = IS_SIMULATION ? transcriptionError : (captureError || transcriptionError);
   useEffect(() => {
     if (error && !showError) {
       setErrorMessage(error);
@@ -197,16 +299,22 @@ export default function Home() {
 
   const handleStartSession = useCallback(async () => {
     setIsConnecting(true);
+    // Auto-dismiss greeting when session starts
+    if (greetingData) {
+      setGreetingData(null);
+      dismissGreeting();
+    }
     try {
-      // Update app state first - but DON'T create a card yet
-      // Card will be created when first person is detected
-      startSession();
+      // Create session in DB first (await ensures sessionId is set before cards are created)
+      await startSession();
       
-      // Connect to transcription service
+      // Connect to transcription service (real or simulated)
       await connectTranscription();
       
-      // Start audio capture (this will prompt for mic permission)
-      await startCapture(handleAudioChunk);
+      // Start audio capture only in live mode (skip in simulation)
+      if (!IS_SIMULATION) {
+        await startCapture(handleAudioChunk);
+      }
       
     } catch (err) {
       console.error('Failed to start session:', err);
@@ -220,10 +328,13 @@ export default function Home() {
   }, [connectTranscription, startCapture, handleAudioChunk, startSession, endSession]);
 
   const handleEndSession = useCallback(() => {
-    stopCapture();
+    if (!IS_SIMULATION) {
+      stopCapture();
+    }
     disconnectTranscription();
     endSession();
-  }, [stopCapture, disconnectTranscription, endSession]);
+    resetTranscriptStorage();
+  }, [stopCapture, disconnectTranscription, endSession, resetTranscriptStorage]);
 
   const handleLinkedInClick = () => {
     // Analytics or logging could go here
@@ -240,7 +351,13 @@ export default function Home() {
     setErrorMessage('');
   }, []);
 
-  const isActive = isListening && isCapturing;
+  // In simulation mode, we're "active" as long as we're listening (no mic needed)
+  const isActive = IS_SIMULATION ? isListening : (isListening && isCapturing);
+
+  const handleDismissGreeting = useCallback(() => {
+    setGreetingData(null);
+    dismissGreeting();
+  }, [dismissGreeting]);
 
   // Show loading while checking auth
   if (authLoading) {
@@ -289,6 +406,11 @@ export default function Home() {
 
       {/* Main content */}
       <main className="pt-4">
+        {/* Daily greeting card — only before session starts */}
+        {greetingData && !greetingDismissed && !isListening && (
+          <DailyGreetingCard greeting={greetingData} onDismiss={handleDismissGreeting} />
+        )}
+
         {/* Active conversation card */}
         <ActiveCard
           person={activeCard}

@@ -134,6 +134,7 @@ export function useSupabase() {
     // Map to PersonCard format
     return cards.map(card => ({
       id: card.id,
+      sessionId: card.session_id || null,
       name: card.name,
       company: card.company,
       role: card.role,

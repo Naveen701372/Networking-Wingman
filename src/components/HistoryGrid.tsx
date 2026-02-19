@@ -60,8 +60,8 @@ function PersonCardItem({ card, onLinkedInClick }: PersonCardItemProps) {
 
   const toggleExpand = () => setIsExpanded(!isExpanded);
 
-  // Calculate talk time (mock for now - will be real later)
-  const talkTime = Math.floor(Math.random() * 10) + 2;
+  // Calculate talk time from card creation time
+  const talkTimeMinutes = Math.max(1, Math.round((Date.now() - new Date(card.createdAt).getTime()) / 60000));
   
   // Get category color
   const accentColor = CATEGORY_COLORS[card.category];
@@ -149,16 +149,16 @@ function PersonCardItem({ card, onLinkedInClick }: PersonCardItemProps) {
                   <span className="font-semibold">Event:</span> Networking Session
                 </p>
                 <p className="text-gray-700 text-sm">
-                  <span className="font-semibold">Talk Time:</span> {talkTime} Minutes
+                  <span className="font-semibold">Talk Time:</span> {talkTimeMinutes} Minutes
                 </p>
               </div>
 
               {/* Action items */}
-              {card.actionItems.length > 0 && (
+              {card.actionItems.filter(item => item && item.text).length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {card.actionItems.map((item) => (
+                  {card.actionItems.filter(item => item && item.text).map((item, index) => (
                     <span
-                      key={item.id}
+                      key={`${card.id}-action-${index}`}
                       className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm"
                     >
                       📋 {item.text}

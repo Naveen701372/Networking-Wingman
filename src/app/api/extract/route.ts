@@ -8,6 +8,7 @@ interface ExtractedEntities {
   summary?: string;
   actionItems?: string[];
   isNewPerson?: boolean;
+  detectedEvent?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { transcript, existingData } = await request.json();
+    const { transcript, existingData, eventContext } = await request.json();
 
     if (!transcript || transcript.trim().length < 10) {
       return NextResponse.json({ entities: {} });
@@ -29,29 +30,35 @@ export async function POST(request: NextRequest) {
 
     const systemPrompt = `You are an AI assistant that extracts contact information from networking conversation transcripts.
 
-Extract the following information about the OTHER person (not the user) from the transcript:
-- name: Their full name if mentioned
-- company: Their company/organization name
+CRITICAL: The USER is the person wearing the device. They introduce themselves as "I'm Navi" or "Hi, I'm Navi". You must NEVER extract Navi's information. Navi is NOT a contact — they are the user. Only extract information about the OTHER person Navi is talking to.
+
+Extract the following about the OTHER person (NOT Navi):
+- name: Their full name. NEVER return "Navi" or any variation.
+- company: Their company/organization
 - role: Their job title or role
 - category: One of: founder, vc, developer, designer, student, executive, other
-- summary: A brief 1-2 sentence summary of who they are and what was discussed
-- actionItems: Array of follow-up tasks mentioned (e.g., "send deck", "connect on LinkedIn")
-- isNewPerson: true if this seems like a new conversation starting (trigger phrases like "Hi, I'm...", "Nice to meet you")
+- summary: Brief 1-2 sentence summary of who they are and what was discussed
+- actionItems: Array of specific follow-up tasks. Each must be a clear, non-empty string describing what Navi promised to do. Consolidate similar items (e.g., "send pitch deck" and "send deck tonight" should be ONE item like "Send pitch deck tonight").
+- isNewPerson: true ONLY if a NEW person introduces themselves with a DIFFERENT name than the current person
+- detectedEvent: If the conversation mentions a specific event, conference, meetup, or occasion (e.g., "TechSummit", "the fintech mixer", "YC Demo Day"), extract the event name. Return null if no event is mentioned or unclear.
 
 Rules:
-- Only extract information that is explicitly mentioned
-- For category, infer from context (e.g., "I founded..." = founder, "I invest in..." = vc)
-- Keep summary concise and professional
-- Action items should be from the user's perspective (what they promised to do)
-- Return null for fields that cannot be determined
+- NEVER create entries for Navi/the user
+- Only extract explicitly mentioned information
+- For category: "I founded..." = founder, "I invest..." or "partner at a fund" = vc, "I'm an engineer/researcher" = developer
+- Action items must be from Navi's perspective (what Navi committed to do)
+- CONSOLIDATE similar action items into one. Maximum 3 action items per person.
+- Every actionItem MUST have actual text, never empty strings
+- Return null for undetermined fields
 
-Respond ONLY with valid JSON, no markdown or explanation.`;
+Respond ONLY with valid JSON.`;
 
     const userPrompt = `Transcript:
 """
 ${transcript}
 """
 
+${eventContext ? `Event context: This conversation is happening at "${eventContext}".` : ''}
 ${existingData ? `Previously extracted data (update if new info found):
 ${JSON.stringify(existingData, null, 2)}` : ''}
 
@@ -105,6 +112,19 @@ Extract entities as JSON:`;
       }
       
       const entities: ExtractedEntities = JSON.parse(jsonStr.trim());
+      
+      // Filter out the user's own name — the system should never create a card for "Navi"
+      if (entities.name && entities.name.toLowerCase().trim() === 'navi') {
+        entities.name = undefined;
+      }
+      
+      // Filter out empty/whitespace-only action items
+      if (entities.actionItems) {
+        entities.actionItems = entities.actionItems.filter(
+          (item) => typeof item === 'string' && item.trim().length > 0
+        );
+      }
+      
       return NextResponse.json({ entities });
     } catch (parseError) {
       console.error('Failed to parse LLM response:', content);
