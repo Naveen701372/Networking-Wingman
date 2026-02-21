@@ -1,6 +1,8 @@
 'use client';
 
+import { motion, AnimatePresence } from 'framer-motion';
 import { PersonCard, CATEGORY_COLORS, CATEGORY_TEXT_COLORS, CATEGORY_LABELS } from '@/store/useAppStore';
+import { cardEnter, contentFade } from '@/lib/animations';
 
 // Generate DiceBear avatar URL from name
 function getAvatarUrl(name: string | null): string {
@@ -23,7 +25,11 @@ export function ActiveCard({ person, isListening, transcriptSnippet }: ActiveCar
   const accentColor = person ? CATEGORY_COLORS[person.category] : CATEGORY_COLORS.other;
 
   return (
-    <div
+    <motion.div
+      variants={cardEnter}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
       className={`
         mx-4 mb-6 p-5 rounded-2xl
         bg-white/95 backdrop-blur-xl shadow-xl
@@ -96,15 +102,24 @@ export function ActiveCard({ person, isListening, transcriptSnippet }: ActiveCar
           </div>
 
           {/* Transcript snippet */}
-          {(transcriptSnippet || isListening) && (
-            <div className="mt-4 p-3 bg-gray-50 rounded-xl">
-              <p className="text-gray-600 text-sm leading-relaxed min-h-[48px]">
-                {transcriptSnippet || (
-                  <span className="text-gray-400 italic">Waiting for speech...</span>
-                )}
-              </p>
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            {(transcriptSnippet || isListening) && (
+              <motion.div
+                key={transcriptSnippet ? 'transcript' : 'waiting'}
+                variants={contentFade}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="mt-4 p-3 bg-gray-50 rounded-xl"
+              >
+                <p className="text-gray-600 text-sm leading-relaxed min-h-[48px]">
+                  {transcriptSnippet || (
+                    <span className="text-gray-400 italic">Waiting for speech...</span>
+                  )}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Action items */}
           {person?.actionItems && person.actionItems.filter(item => item && item.text).length > 0 && (
@@ -122,6 +137,6 @@ export function ActiveCard({ person, isListening, transcriptSnippet }: ActiveCar
 
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

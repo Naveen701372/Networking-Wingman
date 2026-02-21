@@ -22,6 +22,7 @@ import { LoginCard } from '@/components/LoginCard';
 import { DailyGreetingCard, GreetingData } from '@/components/DailyGreetingCard';
 import { SearchBar } from '@/components/SearchBar';
 import { GroupCard } from '@/components/GroupCard';
+import { AnimatePresence } from 'framer-motion';
 import { detectVoiceQuery, resolveVoiceQueryToName, isQueryContinuation } from '@/lib/voice-query-detector';
 
 export default function Home() {
@@ -505,9 +506,11 @@ export default function Home() {
       {/* Main content */}
       <main className="pt-4">
         {/* Daily greeting card — only before session starts */}
-        {greetingData && !greetingDismissed && !isListening && (
-          <DailyGreetingCard greeting={greetingData} onDismiss={handleDismissGreeting} />
-        )}
+        <AnimatePresence>
+          {greetingData && !greetingDismissed && !isListening && (
+            <DailyGreetingCard greeting={greetingData} onDismiss={handleDismissGreeting} />
+          )}
+        </AnimatePresence>
 
         {/* Search bar */}
         <SearchBar />

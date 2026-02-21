@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createLLMProvider } from '@/lib/llm/provider-factory';
+import { logTokenUsage, parseLLMJson } from '@/lib/llm/token-logger';
 
 interface ExtractedEntities {
   name?: string;
@@ -12,14 +14,6 @@ interface ExtractedEntities {
 }
 
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.PPLX_API_KEY;
-  
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'Perplexity API key not configured' },
-      { status: 500 }
-    );
-  }
 
   try {
     const { transcript, existingData, eventContext } = await request.json();
@@ -87,34 +81,18 @@ ${JSON.stringify(existingData, null, 2)}` : ''}
 
 Extract entities as JSON:`;
 
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: 500,
-        temperature: 0.1,
-      }),
+    const llm = createLLMProvider();
+    const llmResponse = await llm.chat({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      maxTokens: 500,
+      temperature: 0.1,
     });
+    logTokenUsage('extract', llmResponse, llm.name);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Perplexity API error:', response.status, errorText);
-      return NextResponse.json(
-        { error: 'Failed to extract entities' },
-        { status: 500 }
-      );
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = llmResponse.content;
 
     if (!content) {
       return NextResponse.json({ entities: {} });
@@ -122,19 +100,7 @@ Extract entities as JSON:`;
 
     // Parse the JSON response
     try {
-      // Clean up the response - remove markdown code blocks if present
-      let jsonStr = content.trim();
-      if (jsonStr.startsWith('```json')) {
-        jsonStr = jsonStr.slice(7);
-      }
-      if (jsonStr.startsWith('```')) {
-        jsonStr = jsonStr.slice(3);
-      }
-      if (jsonStr.endsWith('```')) {
-        jsonStr = jsonStr.slice(0, -3);
-      }
-      
-      const entities: ExtractedEntities = JSON.parse(jsonStr.trim());
+      const entities: ExtractedEntities = parseLLMJson(content);
       
       // Filter out the user's own name — the system should never create a card for "Navi"
       if (entities.name && entities.name.toLowerCase().trim() === 'navi') {

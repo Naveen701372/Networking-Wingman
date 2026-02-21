@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { motion } from 'framer-motion';
 
 export interface GreetingData {
   userName: string;
@@ -16,19 +16,14 @@ interface DailyGreetingCardProps {
 }
 
 export function DailyGreetingCard({ greeting, onDismiss }: DailyGreetingCardProps) {
-  const [isFading, setIsFading] = useState(false);
-
-  const handleDismiss = () => {
-    setIsFading(true);
-    setTimeout(onDismiss, 300);
-  };
-
   if (greeting.isFirstSession) {
     return (
-      <div
-        className={`mx-4 mb-4 p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-teal-50 border border-blue-100 shadow-sm transition-all duration-300 ${
-          isFading ? 'opacity-0 -translate-y-4' : 'opacity-100 translate-y-0'
-        }`}
+      <motion.div
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -16 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="mx-4 mb-4 p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-teal-50 border border-blue-100 shadow-sm"
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">
@@ -41,7 +36,7 @@ export function DailyGreetingCard({ greeting, onDismiss }: DailyGreetingCardProp
             </p>
           </div>
           <button
-            onClick={handleDismiss}
+            onClick={onDismiss}
             className="text-gray-400 hover:text-gray-600 transition-colors ml-3 mt-1"
             aria-label="Dismiss greeting"
           >
@@ -50,15 +45,17 @@ export function DailyGreetingCard({ greeting, onDismiss }: DailyGreetingCardProp
             </svg>
           </button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div
-      className={`mx-4 mb-4 p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-teal-50 border border-blue-100 shadow-sm transition-all duration-300 ${
-        isFading ? 'opacity-0 -translate-y-4' : 'opacity-100 translate-y-0'
-      }`}
+    <motion.div
+      initial={{ opacity: 0, y: -16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -16 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className="mx-4 mb-4 p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-teal-50 border border-blue-100 shadow-sm"
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
@@ -101,7 +98,7 @@ export function DailyGreetingCard({ greeting, onDismiss }: DailyGreetingCardProp
           )}
         </div>
         <button
-          onClick={handleDismiss}
+          onClick={onDismiss}
           className="text-gray-400 hover:text-gray-600 transition-colors ml-3 mt-1"
           aria-label="Dismiss greeting"
         >
@@ -110,6 +107,6 @@ export function DailyGreetingCard({ greeting, onDismiss }: DailyGreetingCardProp
           </svg>
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 }

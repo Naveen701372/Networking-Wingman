@@ -1,36 +1,58 @@
-Hey! I'm Navi. What brings you to the conference?
-Hi Navi! I'm Elena Vasquez, CTO at Terravolt. We build autonomous microgrids for off-grid communities in Latin America using reinforcement learning to optimize energy distribution.
-That's amazing. How many communities are you serving?
-Twenty-three across Colombia and Peru, about fourteen thousand people. We just signed with the Ecuadorian government for forty more villages.
-I'm building a conversation AI tool that captures networking contacts in real time. Similar real-time processing challenges.
-You should meet my co-founder Marco Reyes. He built our NLP pipeline for processing community feedback in Spanish and Quechua. I'll connect you two.
-That'd be great. I'll follow up this week.
-Also, we're presenting our impact report tomorrow at two in Hall B. Swing by!
+Hey! I'm Navi. Love the venue for this summit.
+Right? I'm Amara Osei, head of ML infrastructure at Shopify. We're rebuilding our recommendation engine from scratch using graph neural networks.
+Graph neural networks for e-commerce? That's a bold move.
+It's paying off. Product discovery improved by thirty-seven percent since we switched from collaborative filtering. The graph captures relationships between products, sellers, and buyer behavior that flat models miss completely.
+I'm building a real-time conversation AI that captures networking contacts from live audio. We deal with similar graph-like relationship problems between people.
+Fascinating. You should look into our open-source graph embedding library, ShopGraph. It handles streaming updates which sounds relevant for your real-time use case.
+I'll check it out this week. What's your team size?
+Fourteen engineers across Toronto and Berlin. We're hiring a senior ML ops engineer if you know anyone.
+I might actually. I'll send you a couple of names on LinkedIn.
+Perfect. Also grab a coffee with my colleague Yuki Watanabe, she runs developer relations at Shopify and would love to feature your project in our partner showcase.
 
-Mind if I sit here? I'm Navi.
-Go for it! I'm Jordan Okafor, principal engineer at Datadog. I lead anomaly detection.
-What's the biggest challenge at that scale?
-Alert fatigue. We ingest forty trillion data points daily. We built a correlation engine that groups related anomalies into incidents, reduced alert volume by eighty-five percent.
-I deal with similar signal-to-noise issues. My app extracts contacts from live conversations and the tricky part is knowing what's important versus background noise.
-How do you handle speaker separation in noisy environments?
-We use Deepgram with our own speaker attribution layer on top. Not perfect but it gets better with more context.
-My teammate Reina Kobayashi is working on real-time streaming ML. She's giving a talk tomorrow, "Sub-50ms ML Inference at Scale," Room 2C at nine thirty.
-I'll be there. Thanks Jordan.
+Is this the AI ethics panel overflow? I'm Navi.
+Ha, yeah it's packed in there. I'm Santiago Morales, research scientist at DeepMind. I work on alignment and interpretability for large language models.
+That's heavy stuff. What's the current state of interpretability?
+Honestly, we're still in the dark ages. We can probe individual neurons but understanding emergent behavior at scale is like trying to understand a city by studying individual bricks. My team just published a paper on circuit-level analysis that's getting some traction though.
+We use LLMs for entity extraction in our app and calibrating confidence is a nightmare. Any advice?
+Use ensemble disagreement as your confidence signal. Run the same prompt through two different temperature settings and measure output divergence. High divergence means low confidence. It's cheap and surprisingly effective.
+That's genius. I'm implementing that next sprint.
+Here's my card. Also, my PhD advisor Ingrid Bergström at ETH Zurich runs the Trustworthy AI Lab. She's consulting for startups on responsible AI deployment. Want an intro?
+Absolutely. I'll follow up with you by Friday.
 
-Hey! I'm Navi. Waiting for the keynote?
-Hi! Maya Chen, head of product at Anthropic. I work on the Claude consumer experience.
-What's the biggest design challenge with conversational AI?
-Managing expectations. We spend a lot of time on graceful boundaries. When Claude doesn't know something, it should say so helpfully.
-That resonates. I'm building an AI networking tool and confidence calibration is everything. Wrong extractions kill trust instantly.
-We track correction rate. How often users edit AI outputs. Sweet spot is five to eight percent. Zero means people aren't engaging.
-That's a great metric. Do you know anyone in real-time audio AI? Our transcription pipeline needs work.
-Talk to Tomás Herrera at Assembly AI. They just published on streaming transcription with sub-200ms latency. I'll intro you.
-Perfect. Thanks Maya.
+Navi! Over here by the demo stations!
+Amara! How was the graph neural networks talk?
+Incredible. But forget that, meet Tomoko Hayashi.
+Hi Navi! Tomoko Hayashi, co-founder and CTO of Voxel Health. We build spatial computing interfaces for surgical planning using Apple Vision Pro.
+Surgical planning in mixed reality? How do surgeons respond to that?
+Skeptical at first, then they can't go back. We've done over two thousand pre-surgical visualizations across fifteen hospitals. Complication rates dropped by twenty-two percent in our clinical trial.
+The spatial computing space is exploding. We've thought about building a spatial UI for our networking app too.
+You should. The interaction paradigm is completely different from flat screens. We learned that the hard way. Took us eight months to unlearn mobile design patterns.
+What's your biggest technical challenge right now?
+Real-time volumetric rendering from CT scans. We need sub-frame latency for the surgeon to trust the visualization. We're using custom Metal shaders but hitting memory limits on the M2 chip.
+I know someone at Apple's spatial computing team. I'll try to connect you.
+That would be incredible. We're presenting our clinical results at WWDC next month if you want to come.
+Count me in. I'll send you my contact details tonight.
 
-Navi! It's Jordan again.
-Jordan! How was Reina's talk?
-Standing room only. Listen, I told my VP about your project. Aisha Patel runs partnerships and wants to set up a call about Datadog's marketplace.
-That could be huge for distribution.
-Also met David Kim, partner at Greylock. He's looking at AI productivity tools and wants to see your demo. I'll set up a group chat.
-You're my unofficial biz dev team. Thanks Jordan.
-That's what conferences are for. See you at the closing session.
+Excuse me, are you in the startup track? I'm Navi.
+Yes! I'm Liam O'Brien, founder of Cadence Analytics. We do real-time sentiment analysis for live customer support calls. Series A, just raised twelve million from Accel.
+Sentiment analysis on live calls? We're in adjacent spaces. Our app does entity extraction from live conversations.
+No way. What's your transcription stack?
+Deepgram for speech-to-text with a custom speaker attribution layer on top. You?
+We use a fine-tuned Whisper model hosted on our own infrastructure. Latency is around three hundred milliseconds end to end.
+That's impressive. We're at about four hundred. How do you handle accent variation?
+We trained on a diverse dataset with forty-seven accent categories. The key insight was that accent-specific fine-tuning actually hurt generalization. A single robust model with accent-aware data augmentation works better.
+That's counterintuitive but makes sense. I'd love to compare architectures.
+Let's do a technical deep dive next week. I'll share our benchmarks if you share yours.
+Deal. Also, my investor Sarah Chen at Accel is looking at more audio AI companies. Want me to set up a warm intro?
+That would be amazing. I'll have our deck ready by Wednesday.
+
+Santiago! Good to see you again.
+Navi! Small conference, big ideas. Listen, I want you to meet someone. This is Zara Hussain.
+Hey Navi. Zara Hussain, partner at Lightspeed Venture Partners. I focus on AI infrastructure and developer tools.
+Santiago's been telling me about your real-time extraction approach. Walk me through the architecture.
+We capture live audio, run it through Deepgram for transcription, then use an LLM pipeline for entity extraction, reconciliation, and deduplication. All in real-time as the conversation happens.
+What's your unit economics look like? LLM costs per conversation?
+We're tracking that closely. Currently about two cents per five-minute conversation on DeepSeek, but we're optimizing the extraction pipeline to reduce token usage by batching context windows.
+Smart. The companies that win in AI infrastructure are the ones obsessing over cost efficiency from day one. Send me your metrics dashboard and let's schedule a partner meeting next Tuesday.
+I'll have everything ready. Thanks Zara.
+Looking forward to it. Here's my direct line.

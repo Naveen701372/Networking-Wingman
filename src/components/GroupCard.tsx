@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { PersonCard, GroupSuggestion, CATEGORY_COLORS, CATEGORY_TEXT_COLORS, CATEGORY_LABELS } from '@/store/useAppStore';
 
 function getAvatarUrl(name: string | null): string {
@@ -38,8 +39,8 @@ export function GroupCard({ group, cards, onLinkedInClick }: GroupCardProps) {
   const memberCards = cards.filter(c => group.cardIds.includes(c.id));
   const emoji = group.emoji || DEFAULT_EMOJIS[group.type] || '📁';
   const accentColor = GROUP_ACCENT[group.type] || '#6b7280';
-  // Show first few member avatars stacked inside the "avatar" area
   const previewMembers = memberCards.slice(0, 3);
+  const isInsight = group.type === 'custom' && group.count === 0;
 
   return (
     <div className="transition-all duration-300 ease-out">
@@ -58,20 +59,22 @@ export function GroupCard({ group, cards, onLinkedInClick }: GroupCardProps) {
           {/* Avatar area — emoji with stacked member avatars */}
           <div className="relative flex-shrink-0">
             <div className="w-20 h-24 bg-gray-50 rounded-xl overflow-hidden flex flex-col items-center justify-center gap-1">
-              <span className="text-2xl">{emoji}</span>
-              {/* Mini avatar row */}
-              <div className="flex -space-x-1.5">
-                {previewMembers.map((m) => (
-                  <div key={m.id} className="w-5 h-5 rounded-full border border-white overflow-hidden bg-gray-100">
-                    <img src={getAvatarUrl(m.name)} alt="" className="w-full h-full object-cover" />
-                  </div>
-                ))}
-                {memberCards.length > 3 && (
-                  <div className="w-5 h-5 rounded-full border border-white bg-gray-200 flex items-center justify-center">
-                    <span className="text-[8px] text-gray-500 font-bold">+{memberCards.length - 3}</span>
-                  </div>
-                )}
-              </div>
+              <span className={isInsight ? 'text-3xl' : 'text-2xl'}>{emoji}</span>
+              {/* Mini avatar row — only for groups with members */}
+              {!isInsight && (
+                <div className="flex -space-x-1.5">
+                  {previewMembers.map((m) => (
+                    <div key={m.id} className="w-5 h-5 rounded-full border border-white overflow-hidden bg-gray-100">
+                      <img src={getAvatarUrl(m.name)} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                  {memberCards.length > 3 && (
+                    <div className="w-5 h-5 rounded-full border border-white bg-gray-200 flex items-center justify-center">
+                      <span className="text-[8px] text-gray-500 font-bold">+{memberCards.length - 3}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             {/* Category accent corner — same as contact cards */}
             <div
@@ -93,13 +96,15 @@ export function GroupCard({ group, cards, onLinkedInClick }: GroupCardProps) {
                   {group.label}
                 </h4>
 
-                {/* Member count */}
-                <p className="text-gray-700 text-sm mt-0.5">
-                  {group.count} {group.count === 1 ? 'person' : 'people'}
-                </p>
+                {/* Member count — hide for insight cards */}
+                {!isInsight && (
+                  <p className="text-gray-700 text-sm mt-0.5">
+                    {group.count} {group.count === 1 ? 'person' : 'people'}
+                  </p>
+                )}
               </div>
 
-              {/* Expand/Collapse button — same style as contact cards */}
+              {/* Expand/Collapse button */}
               <button
                 onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
                 className="w-8 h-8 bg-gray-400/80 rounded-lg flex items-center justify-center flex-shrink-0 ml-2"
@@ -121,14 +126,22 @@ export function GroupCard({ group, cards, onLinkedInClick }: GroupCardProps) {
               {group.reason || `A group of ${group.count} contacts`}
             </p>
 
-            {/* Expanded: show member list */}
-            {isExpanded && (
-              <div className="mt-4 space-y-2 animate-fadeIn">
-                {memberCards.map((card) => (
-                  <MemberRow key={card.id} card={card} onLinkedInClick={onLinkedInClick} />
-                ))}
-              </div>
-            )}
+            {/* Expanded: show member list — only for groups with members */}
+            <AnimatePresence>
+              {isExpanded && !isInsight && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  className="mt-4 space-y-2 overflow-hidden"
+                >
+                  {memberCards.map((card) => (
+                    <MemberRow key={card.id} card={card} onLinkedInClick={onLinkedInClick} />
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>

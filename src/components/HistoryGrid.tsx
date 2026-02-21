@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { PersonCard, CATEGORY_COLORS, CATEGORY_TEXT_COLORS, CATEGORY_LABELS } from '@/store/useAppStore';
+import { cardEnter, staggerContainer } from '@/lib/animations';
 
 // Generate DiceBear avatar URL from name
 function getAvatarUrl(name: string | null): string {
@@ -22,24 +24,6 @@ interface HistoryGridProps {
 }
 
 export function HistoryGrid({ cards, onLinkedInClick, searchQuery, activeTab, onTabChange, groupCount, suggestsCount, isLoading }: HistoryGridProps) {
-  // Track when cards first appear for staggered animation
-  const [visibleCount, setVisibleCount] = useState(0);
-
-  useEffect(() => {
-    if (cards.length > visibleCount) {
-      // Stagger reveal: show cards one by one with a small delay
-      const timer = setTimeout(() => {
-        setVisibleCount(prev => Math.min(prev + 1, cards.length));
-      }, 60);
-      return () => clearTimeout(timer);
-    }
-  }, [cards.length, visibleCount]);
-
-  // Reset visible count when cards change significantly (e.g. search)
-  useEffect(() => {
-    if (cards.length === 0) setVisibleCount(0);
-  }, [cards.length]);
-
   if (isLoading) {
     return (
       <div className="px-4 py-12 flex flex-col items-center justify-center gap-4">
@@ -132,19 +116,31 @@ export function HistoryGrid({ cards, onLinkedInClick, searchQuery, activeTab, on
       {q && matchCount === 0 && (
         <p className="text-gray-400 text-center text-sm py-4">No matches found</p>
       )}
-      {sortedCards.map((card, index) => (
-        <div
-          key={card.id}
-          className={`animate-card-enter ${index < visibleCount ? '' : 'opacity-0'}`}
-          style={{ animationDelay: `${Math.min(index, 15) * 60}ms` }}
-        >
-          <PersonCardItem 
-            card={card} 
-            onLinkedInClick={onLinkedInClick}
-            dimmed={q ? !cardMatches(card) : false}
-          />
-        </div>
-      ))}
+      <motion.div
+        variants={staggerContainer}
+        initial="hidden"
+        animate="visible"
+        className="space-y-3"
+      >
+        <AnimatePresence mode="popLayout">
+          {sortedCards.map((card) => (
+            <motion.div
+              key={card.id}
+              variants={cardEnter}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              layout
+            >
+              <PersonCardItem 
+                card={card} 
+                onLinkedInClick={onLinkedInClick}
+                dimmed={q ? !cardMatches(card) : false}
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }
@@ -175,8 +171,10 @@ function PersonCardItem({ card, onLinkedInClick, dimmed }: PersonCardItemProps) 
   const accentColor = CATEGORY_COLORS[card.category];
 
   return (
-    <div 
+    <motion.div 
       onClick={toggleExpand}
+      animate={{ opacity: dimmed ? 0.3 : 1 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
       className={`
         bg-white/95 backdrop-blur-xl rounded-2xl shadow-lg
         border border-gray-100
@@ -184,7 +182,6 @@ function PersonCardItem({ card, onLinkedInClick, dimmed }: PersonCardItemProps) 
         hover:shadow-xl hover:scale-[1.01]
         ${isExpanded ? 'p-5' : 'p-4'}
       `}
-      style={{ opacity: dimmed ? 0.3 : 1 }}
     >
       <div className="flex gap-4">
         {/* Avatar with category accent */}
@@ -254,8 +251,15 @@ function PersonCardItem({ card, onLinkedInClick, dimmed }: PersonCardItemProps) 
           </p>
 
           {/* Expanded content */}
-          {isExpanded && (
-            <div className="mt-4 space-y-4 animate-fadeIn">
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                className="mt-4 space-y-4 overflow-hidden"
+              >
               {/* Metadata */}
               <div className="space-y-1">
                 <p className="text-gray-700 text-sm">
@@ -297,11 +301,12 @@ function PersonCardItem({ card, onLinkedInClick, dimmed }: PersonCardItemProps) 
                 <span>LinkedIn</span>
                 <PersonIcon />
               </button>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createLLMProvider } from '@/lib/llm/provider-factory';
+import { logTokenUsage, parseLLMJson } from '@/lib/llm/token-logger';
 
 interface CardSnapshot {
   id: string;
@@ -24,15 +26,6 @@ export interface DeduplicationResult {
 }
 
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.PPLX_API_KEY;
-
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'PPLX_API_KEY is required for deduplication' },
-      { status: 500 }
-    );
-  }
-
   try {
     const { cards } = (await request.json()) as { cards: CardSnapshot[] };
 
@@ -104,43 +97,25 @@ ${JSON.stringify(cards, null, 2)}
 
 Analyze and return deduplication JSON:`;
 
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: 800,
-        temperature: 0.1,
-      }),
+    const llm = createLLMProvider();
+    const llmResponse = await llm.chat({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      maxTokens: 800,
+      temperature: 0.1,
     });
+    logTokenUsage('dedup', llmResponse, llm.name);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Perplexity API error (dedup):', response.status, errorText);
-      return NextResponse.json({ error: 'Dedup LLM call failed' }, { status: 500 });
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = llmResponse.content;
 
     if (!content) {
       return NextResponse.json({ merges: [] } as DeduplicationResult);
     }
 
     try {
-      let jsonStr = content.trim();
-      if (jsonStr.startsWith('```json')) jsonStr = jsonStr.slice(7);
-      if (jsonStr.startsWith('```')) jsonStr = jsonStr.slice(3);
-      if (jsonStr.endsWith('```')) jsonStr = jsonStr.slice(0, -3);
-
-      const result: DeduplicationResult = JSON.parse(jsonStr.trim());
+      const result: DeduplicationResult = parseLLMJson(content);
       if (!Array.isArray(result.merges)) result.merges = [];
 
       return NextResponse.json(result);

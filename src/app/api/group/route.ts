@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createLLMProvider } from '@/lib/llm/provider-factory';
+import { logTokenUsage, parseLLMJson } from '@/lib/llm/token-logger';
 
 interface ContactInput {
   id: string;
@@ -73,10 +75,71 @@ function buildDeterministicGroups(contacts: ContactInput[]): GroupSuggestion[] {
   return groups;
 }
 
+/** LLM-based networking insights — 1-2 analytical observations about the user's network */
+async function buildInsights(contacts: ContactInput[]): Promise<GroupSuggestion[]> {
+  if (contacts.length < 3) return [];
+
+  const contactSummaries = contacts.map(c =>
+    `- ${c.name || 'Unknown'} (${c.company || 'no company'}, ${c.role || 'no role'}, category: ${c.category}): ${c.summary || 'no summary'}`
+  ).join('\n');
+
+  const systemPrompt = `You are a sharp networking analyst. You spot patterns in someone's networking activity and give them one or two genuinely useful observations. Return ONLY valid JSON.`;
+
+  const userPrompt = `Here are all the contacts from recent networking events:
+${contactSummaries}
+
+Look at the big picture. What patterns do you notice? Think about:
+- Are they gravitating toward a particular industry or role type?
+- Is there a theme in the conversations (AI, fundraising, hiring, etc.)?
+- Any interesting trend in who they're meeting?
+- Any actionable observation (e.g. "You've met 4 founders but no investors — might be time to diversify")
+
+Give 1-2 short, punchy insights. Each insight needs:
+- A catchy label (like "The AI Magnet" or "Founder Streak")
+- An emoji
+- A one-sentence reason that feels like a friend pointing something out
+
+Return JSON array:
+[{ "label": "Insight Title", "emoji": "📈", "reason": "You've been meeting a lot of data science folks lately — looks like you're building a solid ML network" }]
+
+Rules:
+- Max 2 insights
+- Be specific, reference actual patterns from the data
+- Conversational tone, not corporate
+- Each insight should feel genuinely useful, not generic`;
+
+  try {
+    const llm = createLLMProvider();
+    const llmResponse = await llm.chat({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      maxTokens: 300,
+      temperature: 0.5,
+    });
+    logTokenUsage('group/insights', llmResponse, llm.name);
+
+    if (!llmResponse.content) return [];
+
+    const parsed: Array<{ label: string; emoji?: string; reason?: string }> = parseLLMJson(llmResponse.content);
+
+    return parsed.slice(0, 2).map(insight => ({
+      label: insight.label,
+      type: 'custom' as const,
+      cardIds: [],
+      count: 0,
+      reason: insight.reason || undefined,
+      emoji: insight.emoji || '💡',
+    }));
+  } catch {
+    return [];
+  }
+}
+
 /** LLM-based intelligent groupings via Perplexity */
 async function buildLLMGroups(contacts: ContactInput[]): Promise<GroupSuggestion[]> {
-  const apiKey = process.env.PPLX_API_KEY;
-  if (!apiKey || contacts.length < 3) return [];
+  if (contacts.length < 3) return [];
 
   const contactSummaries = contacts.map(c =>
     `- ${c.name || 'Unknown'} (${c.company || 'no company'}, ${c.role || 'no role'}): ${c.summary || 'no summary'}`
@@ -109,35 +172,20 @@ Rules:
 - The reason should feel like a friend giving advice, not a report`;
 
   try {
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: 600,
-        temperature: 0.4,
-      }),
+    const llm = createLLMProvider();
+    const llmResponse = await llm.chat({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      maxTokens: 600,
+      temperature: 0.4,
     });
+    logTokenUsage('group/llm-groups', llmResponse, llm.name);
 
-    if (!response.ok) return [];
+    if (!llmResponse.content) return [];
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) return [];
-
-    let jsonStr = content.trim();
-    if (jsonStr.startsWith('```json')) jsonStr = jsonStr.slice(7);
-    if (jsonStr.startsWith('```')) jsonStr = jsonStr.slice(3);
-    if (jsonStr.endsWith('```')) jsonStr = jsonStr.slice(0, -3);
-
-    const parsed: Array<{ label: string; emoji?: string; reason?: string; contactNames: string[] }> = JSON.parse(jsonStr.trim());
+    const parsed: Array<{ label: string; emoji?: string; reason?: string; contactNames: string[] }> = parseLLMJson(llmResponse.content);
 
     // Map contact names back to IDs
     const nameToId = new Map<string, string>();
@@ -176,10 +224,13 @@ export async function POST(request: NextRequest) {
     // Build deterministic groups first (fast, no LLM)
     const deterministicGroups = buildDeterministicGroups(contacts);
 
-    // Build LLM topic groups in parallel
-    const llmGroups = await buildLLMGroups(contacts);
+    // Build LLM topic groups and insights in parallel
+    const [llmGroups, insights] = await Promise.all([
+      buildLLMGroups(contacts),
+      buildInsights(contacts),
+    ]);
 
-    const allGroups = [...deterministicGroups, ...llmGroups];
+    const allGroups = [...deterministicGroups, ...llmGroups, ...insights];
 
     return NextResponse.json({ groups: allGroups });
   } catch (error) {

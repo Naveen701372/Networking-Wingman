@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createLLMProvider } from '@/lib/llm/provider-factory';
+import { logTokenUsage, parseLLMJson } from '@/lib/llm/token-logger';
 
 interface CardSnapshot {
   id: string;
@@ -31,15 +33,6 @@ export interface ReconciliationResult {
 }
 
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.PPLX_API_KEY;
-
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'PPLX_API_KEY is required for reconciliation' },
-      { status: 500 }
-    );
-  }
-
   try {
     const { transcript, cards, deduplicationMode, candidatePairs } = (await request.json()) as {
       transcript: string;
@@ -54,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     // Deduplication mode: focus on merge detection across cards
     if (deduplicationMode && candidatePairs && candidatePairs.length > 0) {
-      return handleDeduplication(apiKey, cards, candidatePairs);
+      return handleDeduplication(cards, candidatePairs);
     }
 
     if (!transcript || transcript.trim().length < 20) {
@@ -115,46 +108,25 @@ ${JSON.stringify(cards, null, 2)}
 
 Analyze and return reconciliation JSON:`;
 
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: 1000,
-        temperature: 0.1,
-      }),
+    const llm = createLLMProvider();
+    const llmResponse = await llm.chat({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      maxTokens: 1000,
+      temperature: 0.1,
     });
+    logTokenUsage('reconcile', llmResponse, llm.name);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Perplexity API error (reconcile):', response.status, errorText);
-      return NextResponse.json(
-        { error: 'Reconciliation LLM call failed' },
-        { status: 500 }
-      );
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = llmResponse.content;
 
     if (!content) {
       return NextResponse.json({ updates: [], merges: [] } as ReconciliationResult);
     }
 
     try {
-      let jsonStr = content.trim();
-      if (jsonStr.startsWith('```json')) jsonStr = jsonStr.slice(7);
-      if (jsonStr.startsWith('```')) jsonStr = jsonStr.slice(3);
-      if (jsonStr.endsWith('```')) jsonStr = jsonStr.slice(0, -3);
-
-      const result: ReconciliationResult = JSON.parse(jsonStr.trim());
+      const result: ReconciliationResult = parseLLMJson(content);
 
       // Validate structure
       if (!Array.isArray(result.updates)) result.updates = [];
@@ -176,7 +148,6 @@ Analyze and return reconciliation JSON:`;
 
 
 async function handleDeduplication(
-  apiKey: string,
   cards: CardSnapshot[],
   candidatePairs: [string, string][]
 ): Promise<NextResponse> {
@@ -220,40 +191,22 @@ ${JSON.stringify(pairsDescription, null, 2)}
 Evaluate each pair and return merge decisions:`;
 
   try {
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: 500,
-        temperature: 0.1,
-      }),
+    const llm = createLLMProvider();
+    const llmResponse = await llm.chat({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      maxTokens: 500,
+      temperature: 0.1,
     });
+    logTokenUsage('reconcile/dedup', llmResponse, llm.name);
 
-    if (!response.ok) {
+    if (!llmResponse.content) {
       return NextResponse.json({ updates: [], merges: [] } as ReconciliationResult);
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      return NextResponse.json({ updates: [], merges: [] } as ReconciliationResult);
-    }
-
-    let jsonStr = content.trim();
-    if (jsonStr.startsWith('```json')) jsonStr = jsonStr.slice(7);
-    if (jsonStr.startsWith('```')) jsonStr = jsonStr.slice(3);
-    if (jsonStr.endsWith('```')) jsonStr = jsonStr.slice(0, -3);
-
-    const result = JSON.parse(jsonStr.trim());
+    const result = parseLLMJson<{ merges?: ReconciliationMerge[] }>(llmResponse.content);
     return NextResponse.json({
       updates: [],
       merges: Array.isArray(result.merges) ? result.merges : [],
