@@ -22,7 +22,10 @@ import { LoginCard } from '@/components/LoginCard';
 import { DailyGreetingCard, GreetingData } from '@/components/DailyGreetingCard';
 import { SearchBar } from '@/components/SearchBar';
 import { GroupCard } from '@/components/GroupCard';
-import { AnimatePresence } from 'framer-motion';
+import { GroupBubbles } from '@/components/GroupBubbles';
+import { ConnectionArchitectCard, generateArchitectInsights } from '@/components/ConnectionArchitectCard';
+import { AnimatePresence, motion } from 'framer-motion';
+import { tabContentSwitch, staggerContainer, cardEnter } from '@/lib/animations';
 import { detectVoiceQuery, resolveVoiceQueryToName, isQueryContinuation } from '@/lib/voice-query-detector';
 
 export default function Home() {
@@ -523,8 +526,8 @@ export default function Home() {
         />
 
         {/* Content based on active tab */}
-        {!isListening && groups.length > 0 && (activeTab === 'groups' || activeTab === 'suggests') ? (
-          <div className="px-4 space-y-3 animate-section-in">
+        {!isListening && (groups.length > 0 || historyCards.length >= 3) && (activeTab === 'groups' || activeTab === 'suggests') ? (
+          <div className="px-4 space-y-3">
             {/* Tab header — replicated from HistoryGrid style */}
             <div className="flex items-center gap-3 mb-4 flex-wrap">
               <button
@@ -549,46 +552,79 @@ export default function Home() {
                   activeTab === 'suggests' ? 'text-gray-900' : 'text-gray-400 hover:text-gray-500'
                 }`}
               >
-                Recall ({groups.filter(g => g.type === 'topic' || g.type === 'custom').length})
+                Recall ({(() => {
+                  const aiCount = groups.filter(g => g.type === 'topic' || g.type === 'custom').length;
+                  return aiCount > 0 ? aiCount : generateArchitectInsights(historyCards).length;
+                })()})
               </button>
             </div>
 
-            {/* Groups tab — deterministic groups only */}
-            {activeTab === 'groups' && (
-              <div className="space-y-3 animate-section-in">
-                {groups.filter(g => g.type !== 'topic' && g.type !== 'custom').map((group, idx) => (
-                  <div key={`det-${group.label}-${idx}`} className="animate-card-in" style={{ animationDelay: `${idx * 60}ms` }}>
-                    <GroupCard
-                      group={group}
-                      cards={historyCards}
-                      onLinkedInClick={handleLinkedInClick}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+            <AnimatePresence mode="wait">
+              {/* Groups tab — deterministic groups only */}
+              {activeTab === 'groups' && (
+                <motion.div
+                  key="groups-tab"
+                  variants={tabContentSwitch}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                >
+                  <GroupBubbles
+                    groups={groups.filter(g => g.type !== 'topic' && g.type !== 'custom')}
+                    cards={historyCards}
+                    onLinkedInClick={handleLinkedInClick}
+                  />
+                </motion.div>
+              )}
 
-            {/* Recall Suggests tab — AI groups only */}
-            {activeTab === 'suggests' && (
-              <div className="space-y-3 animate-section-in">
-                {groups.filter(g => g.type === 'topic' || g.type === 'custom').length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-400 text-sm">Recall suggestions appear after meeting 6+ people.</p>
-                    <p className="text-gray-300 text-xs mt-1">AI finds hidden connections between your contacts.</p>
-                  </div>
-                ) : (
-                  groups.filter(g => g.type === 'topic' || g.type === 'custom').map((group, idx) => (
-                    <div key={`ai-${group.label}-${idx}`} className="animate-card-in" style={{ animationDelay: `${idx * 60}ms` }}>
-                      <GroupCard
-                        group={group}
-                        cards={historyCards}
-                        onLinkedInClick={handleLinkedInClick}
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
+              {/* Recall Suggests tab — AI groups + architect cards fallback */}
+              {activeTab === 'suggests' && (
+                <motion.div
+                  key="suggests-tab"
+                  variants={tabContentSwitch}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                >
+                  {(() => {
+                    const recallGroups = groups.filter(g => g.type === 'topic' || g.type === 'custom');
+                    if (recallGroups.length > 0) {
+                      return (
+                        <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-3">
+                          {recallGroups.map((group, idx) => (
+                            <motion.div key={`ai-${group.label}-${idx}`} variants={cardEnter}>
+                              <GroupCard
+                                group={group}
+                                cards={historyCards}
+                                onLinkedInClick={handleLinkedInClick}
+                              />
+                            </motion.div>
+                          ))}
+                        </motion.div>
+                      );
+                    }
+                    // Fallback: show AI architect insights when no recall groups exist
+                    const architectInsights = generateArchitectInsights(historyCards);
+                    if (architectInsights.length > 0) {
+                      return (
+                        <div className="space-y-3">
+                          <p className="text-gray-400 text-xs uppercase tracking-wide mb-2">AI Network Analysis</p>
+                          {architectInsights.map((insight, idx) => (
+                            <ConnectionArchitectCard key={insight.id} card={insight} />
+                          ))}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="text-center py-8">
+                        <p className="text-gray-400 text-sm">Recall suggestions appear after meeting 6+ people.</p>
+                        <p className="text-gray-300 text-xs mt-1">AI finds hidden connections between your contacts.</p>
+                      </div>
+                    );
+                  })()}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ) : (
           <HistoryGrid
@@ -596,9 +632,12 @@ export default function Home() {
             onLinkedInClick={handleLinkedInClick}
             searchQuery={searchQuery}
             activeTab={activeTab}
-            onTabChange={!isListening && groups.length > 0 ? setActiveTab : undefined}
+            onTabChange={!isListening && (groups.length > 0 || historyCards.length >= 3) ? setActiveTab : undefined}
             groupCount={groups.filter(g => g.type !== 'topic' && g.type !== 'custom').length}
-            suggestsCount={groups.filter(g => g.type === 'topic' || g.type === 'custom').length}
+            suggestsCount={(() => {
+              const aiCount = groups.filter(g => g.type === 'topic' || g.type === 'custom').length;
+              return aiCount > 0 ? aiCount : generateArchitectInsights(historyCards).length;
+            })()}
             isLoading={isLoadingCards}
           />
         )}

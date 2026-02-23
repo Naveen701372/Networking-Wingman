@@ -96,3 +96,28 @@ export const staggerContainer: Variants = {
     },
   },
 };
+
+/** Tab content switch — fade + slight slide */
+export const tabContentSwitch: Variants = {
+  hidden: { opacity: 0, y: 6 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.3, ease: 'easeOut' },
+  },
+  exit: {
+    opacity: 0,
+    y: -6,
+    transition: { duration: 0.2, ease: 'easeOut' },
+  },
+};
+
+/** Counter number pop */
+export const counterPop: Variants = {
+  initial: { scale: 1 },
+  pop: {
+    scale: [1, 1.3, 1],
+    transition: { duration: 0.3, ease: 'easeOut' },
+  },
+};
+

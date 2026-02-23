@@ -1,9 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PersonCard, CATEGORY_COLORS, CATEGORY_TEXT_COLORS, CATEGORY_LABELS } from '@/store/useAppStore';
 import { cardEnter, staggerContainer } from '@/lib/animations';
+
+/** Animated number that pops when value changes */
+function AnimatedCount({ value }: { value: number }) {
+  const prevRef = useRef(value);
+  const [pop, setPop] = useState(false);
+
+  useEffect(() => {
+    if (prevRef.current !== value) {
+      prevRef.current = value;
+      setPop(true);
+      const t = setTimeout(() => setPop(false), 350);
+      return () => clearTimeout(t);
+    }
+  }, [value]);
+
+  return (
+    <motion.span
+      animate={pop ? { scale: [1, 1.35, 1] } : { scale: 1 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className="inline-block"
+    >
+      {value}
+    </motion.span>
+  );
+}
 
 // Generate DiceBear avatar URL from name
 function getAvatarUrl(name: string | null): string {
@@ -67,7 +92,7 @@ export function HistoryGrid({ cards, onLinkedInClick, searchQuery, activeTab, on
     ? [...cards].sort((a, b) => matchRank(a) - matchRank(b))
     : cards;
 
-  const showTabs = onTabChange && groupCount !== undefined && groupCount > 0;
+  const showTabs = onTabChange && ((groupCount !== undefined && groupCount > 0) || (suggestsCount !== undefined && suggestsCount > 0));
 
   return (
     <div className="px-4 space-y-3">
@@ -82,7 +107,7 @@ export function HistoryGrid({ cards, onLinkedInClick, searchQuery, activeTab, on
                   : 'text-gray-400 hover:text-gray-500'
               }`}
             >
-              People Met ({matchCount}{q && matchCount !== cards.length ? `/${cards.length}` : ''})
+              People Met (<AnimatedCount value={matchCount} />{q && matchCount !== cards.length ? `/${cards.length}` : ''})
             </button>
             <span className="text-gray-300">|</span>
             <button
@@ -93,7 +118,7 @@ export function HistoryGrid({ cards, onLinkedInClick, searchQuery, activeTab, on
                   : 'text-gray-400 hover:text-gray-500'
               }`}
             >
-              Groups ({groupCount})
+              Groups (<AnimatedCount value={groupCount || 0} />)
             </button>
             <span className="text-gray-300">|</span>
             <button
@@ -104,7 +129,7 @@ export function HistoryGrid({ cards, onLinkedInClick, searchQuery, activeTab, on
                   : 'text-gray-400 hover:text-gray-500'
               }`}
             >
-              Recall ({suggestsCount || 0})
+              Recall (<AnimatedCount value={suggestsCount || 0} />)
             </button>
           </>
         ) : (
