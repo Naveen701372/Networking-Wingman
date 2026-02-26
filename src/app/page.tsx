@@ -27,6 +27,7 @@ import { ConnectionArchitectCard, generateArchitectInsights } from '@/components
 import { AnimatePresence, motion } from 'framer-motion';
 import { tabContentSwitch, staggerContainer, cardEnter } from '@/lib/animations';
 import { detectVoiceQuery, resolveVoiceQueryToName } from '@/lib/voice-query-detector';
+import { posthog } from '@/lib/posthog';
 
 export default function Home() {
   const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
@@ -59,6 +60,10 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
   const [activeTab, setActiveTab] = useState<'people' | 'groups' | 'suggests'>('people');
+  const handleTabChange = useCallback((tab: 'people' | 'groups' | 'suggests') => {
+    setActiveTab(tab);
+    posthog.capture('tab_switched', { tab });
+  }, []);
   const lastTranscriptLengthRef = useRef(0);
   const hasLoadedRef = useRef(false);
   const [greetingData, setGreetingData] = useState<GreetingData | null>(null);
@@ -71,8 +76,13 @@ export default function Home() {
   useEffect(() => {
     if (user) {
       setUserId(user.id);
+      posthog.identify(user.id, {
+        email: user.email,
+        name: user.user_metadata?.full_name || user.user_metadata?.name,
+      });
     } else {
       setUserId(null);
+      posthog.reset();
     }
   }, [user, setUserId]);
 
@@ -391,6 +401,8 @@ export default function Home() {
       // Connect to transcription service (real or simulated)
       await connectTranscription();
       
+      posthog.capture('session_started', { mode: IS_SIMULATION ? 'simulation' : 'live' });
+      
       // Start audio capture only in live mode (skip in simulation)
       if (!IS_SIMULATION) {
         await startCapture(handleAudioChunk);
@@ -414,6 +426,9 @@ export default function Home() {
     disconnectTranscription();
     endSession();
     resetTranscriptStorage();
+    posthog.capture('session_ended', {
+      cards_created: useAppStore.getState().historyCards.length,
+    });
   }, [stopCapture, disconnectTranscription, endSession, resetTranscriptStorage]);
 
   const handleLinkedInClick = () => {
@@ -509,14 +524,14 @@ export default function Home() {
             {/* Tab header — replicated from HistoryGrid style */}
             <div className="flex items-center gap-3 mb-4 flex-wrap">
               <button
-                onClick={() => setActiveTab('people')}
+                onClick={() => handleTabChange('people')}
                 className="text-sm font-medium uppercase tracking-wide text-gray-400 hover:text-gray-500 transition-colors duration-200"
               >
                 People Met ({historyCards.length})
               </button>
               <span className="text-gray-300">|</span>
               <button
-                onClick={() => setActiveTab('groups')}
+                onClick={() => handleTabChange('groups')}
                 className={`text-sm font-medium uppercase tracking-wide transition-colors duration-200 ${
                   activeTab === 'groups' ? 'text-gray-900' : 'text-gray-400 hover:text-gray-500'
                 }`}
@@ -525,7 +540,7 @@ export default function Home() {
               </button>
               <span className="text-gray-300">|</span>
               <button
-                onClick={() => setActiveTab('suggests')}
+                onClick={() => handleTabChange('suggests')}
                 className={`text-sm font-medium uppercase tracking-wide transition-colors duration-200 ${
                   activeTab === 'suggests' ? 'text-gray-900' : 'text-gray-400 hover:text-gray-500'
                 }`}
@@ -610,7 +625,7 @@ export default function Home() {
             onLinkedInClick={handleLinkedInClick}
             searchQuery={searchQuery}
             activeTab={activeTab}
-            onTabChange={!isListening && (groups.length > 0 || historyCards.length >= 3) ? setActiveTab : undefined}
+            onTabChange={!isListening && (groups.length > 0 || historyCards.length >= 3) ? handleTabChange : undefined}
             groupCount={groups.filter(g => g.type !== 'topic' && g.type !== 'custom').length}
             suggestsCount={(() => {
               const aiCount = groups.filter(g => g.type === 'topic' || g.type === 'custom').length;
