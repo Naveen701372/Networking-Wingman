@@ -142,7 +142,7 @@ export function GroupBubbles({ groups, cards, onLinkedInClick }: GroupBubblesPro
               {focusedGroup.label}
             </h4>
             <p className="text-xs text-gray-400 mt-0.5">
-              {focusedGroup.count} {focusedGroup.count === 1 ? 'person' : 'people'} · tap to close
+              {focusedMembers.length} {focusedMembers.length === 1 ? 'person' : 'people'} · tap to close
             </p>
 
             {/* Member list below focused bubble */}
@@ -223,7 +223,7 @@ export function GroupBubbles({ groups, cards, onLinkedInClick }: GroupBubblesPro
                     {group.label}
                   </p>
                   <p className="text-[10px] text-gray-400">
-                    {group.count}
+                    {memberCards.length}
                   </p>
                 </motion.div>
               );

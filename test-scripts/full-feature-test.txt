@@ -1,0 +1,79 @@
+Hey! I'm Navi, nice to meet you.
+Hi Navi! I'm Soren Ekberg, lead robotics engineer at Boston Dynamics. I work on the autonomous navigation stack for our warehouse robots.
+That's fascinating. What kind of environments are they operating in?
+Mostly large fulfillment centers. We just deployed a fleet of sixty units at a major retailer. They navigate around humans with zero incidents so far.
+I'd love to see them in action. Can you arrange a facility tour?
+Definitely, shoot me an email at soren at bostondynamics dot com and I'll set it up for next month.
+Will do. Great meeting you Soren.
+
+Hey there, I'm Navi.
+Navi! I'm Talia Russo, co-founder and CEO of MindBridge. We're building an AI therapist companion app for teens dealing with anxiety.
+Mental health tech for teens, that's so needed right now. How does it work?
+It's a conversational agent trained on CBT techniques. We partnered with Johns Hopkins to validate the clinical outcomes. Early results show a forty percent reduction in anxiety scores.
+That's real impact. I know a health tech journalist at Wired who'd love this story. Let me introduce you two.
+That would be amazing. Here's my number, just text me whenever.
+On it. Nice meeting you Talia.
+
+Hi! I'm Navi.
+Hey! I'm Kofi Mensah, principal engineer at Databricks. I lead the real-time streaming team for their lakehouse platform.
+Databricks is everywhere these days. What's the biggest challenge with real-time?
+Exactly-once semantics at petabyte scale. We just shipped a new checkpointing system that cut recovery time from minutes to under three seconds.
+That's impressive engineering. I'm dealing with real-time audio streams and could use advice on buffering strategies. Can we do a thirty-minute call next week?
+Sure thing, grab a slot on my Calendly. I'll DM you the link on LinkedIn.
+Perfect. Great to meet you Kofi.
+
+Excuse me, mind if I join? I'm Navi.
+Not at all! I'm Vera Sokolova, partner at Lightspeed Venture Partners. I invest in developer tools and infrastructure.
+Developer tools is exactly my world. What's your thesis right now?
+I'm really bullish on AI-native dev environments. Tools that don't just autocomplete but actually understand your entire codebase and architecture.
+That resonates with what I'm building. I'd love to send you a quick overview of our product.
+Please do. Send it to vera at lsvp dot com and include any traction metrics you have. I'll review it within the week.
+You'll have it by Wednesday. Thanks Vera.
+
+Hey! I'm Navi.
+Hi! I'm Dante Oliveira, creative director at Pixar. I lead the procedural animation research group.
+Pixar and procedural animation? That must be a dream job.
+It really is. We're using diffusion models to generate crowd scenes now. What used to take weeks of manual animation takes about two hours.
+That's mind-blowing. My team works with real-time audio AI. I think there could be an interesting crossover with lip-sync generation. Could you share any published research on your diffusion approach?
+We have a SIGGRAPH paper coming out in August. I'll send you the preprint once it's ready.
+I'd love that. Nice meeting you Dante.
+
+Hey there, I'm Navi.
+Navi, hey! I'm Freya Andersen, head of machine learning at Spotify. I run the audio understanding team.
+Audio understanding at Spotify, that's right in my wheelhouse. What are you focused on?
+We're building models that understand the emotional arc of a song or podcast episode. It powers our mood-based playlists and ad placement.
+Emotional arc detection is brilliant. I'm working on real-time sentiment in conversations. We should compare architectures. Can I buy you lunch next Tuesday?
+Tuesday works. There's a great ramen place near our office in Manhattan. I'll send you the address.
+Looking forward to it. Great meeting you Freya.
+
+Hi! I'm Navi.
+Hey! I'm Idris Kante, founder of NexaGrid. We build decentralized energy trading platforms for solar microgrids in West Africa.
+Clean energy and blockchain, that's a powerful combo. How many communities are you serving?
+About three hundred villages across Ghana and Senegal. Households sell excess solar power to their neighbors through our app. We just crossed a million transactions.
+A million transactions, that's incredible. I have a friend at the Gates Foundation working on energy access. Let me connect you.
+That could be transformative for us. Send me a WhatsApp message, here's my number.
+I'll reach out tonight. Great meeting you Idris.
+
+Hey, I'm Navi.
+Hi Navi! I'm Mika Sato, staff engineer at Tesla. I work on the full self-driving perception pipeline.
+FSD perception, that's high stakes. What sensor fusion approach are you using?
+Pure vision now, no lidar. We process about two thousand frames per second across eight cameras with a custom transformer architecture.
+Pure vision at that scale is bold. I'd love to understand your latency optimization tricks for on-device inference. Can you share any technical talks or blog posts?
+We're doing an internal tech talk at the AI hardware summit in April. I can get you a guest pass.
+That would be awesome. I'll follow up with you on LinkedIn. Nice meeting you Mika.
+
+Hey there! I'm Navi.
+Hi! I'm Zuri Abrams, director of engineering at Figma. I lead the multiplayer collaboration infrastructure team.
+Figma's real-time collab is best in class. What's under the hood?
+CRDTs with a custom conflict resolution layer. We handle about five million concurrent editing sessions at peak. We're now extending it to support AI agents as collaborators.
+AI agents as collaborators in Figma, that's wild. I'm building real-time AI for conversations. We should swap notes on low-latency sync protocols. Can we set up a video call this month?
+Absolutely. Email me at zuri at figma dot com and we'll find a time. I'll also share our engineering blog series on CRDTs.
+Looking forward to it. Great meeting you Zuri.
+
+Hey! I'm Navi.
+Navi, hi! I'm Oscar Brennan, co-founder of VoiceForge. We make AI voice cloning tools for game studios and animation houses.
+Voice cloning for games, that's a fun space. How realistic are the voices?
+We can clone a voice from thirty seconds of audio with ninety-seven percent similarity. Ubisoft and Riot Games are both using us for NPC dialogue.
+Thirty seconds to clone, that's wild. I work with real-time audio too. We should explore a partnership for live voice transformation. Can you send me your SDK docs?
+For sure, I'll email you the developer portal link and an API key so you can play around with it.
+That's generous. I'll send you my email on LinkedIn. Great meeting you Oscar.

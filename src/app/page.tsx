@@ -26,7 +26,7 @@ import { GroupBubbles } from '@/components/GroupBubbles';
 import { ConnectionArchitectCard, generateArchitectInsights } from '@/components/ConnectionArchitectCard';
 import { AnimatePresence, motion } from 'framer-motion';
 import { tabContentSwitch, staggerContainer, cardEnter } from '@/lib/animations';
-import { detectVoiceQuery, resolveVoiceQueryToName, isQueryContinuation } from '@/lib/voice-query-detector';
+import { detectVoiceQuery, resolveVoiceQueryToName } from '@/lib/voice-query-detector';
 
 export default function Home() {
   const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
@@ -143,25 +143,31 @@ export default function Home() {
     setTimeout(() => {
       const { isVoiceSearching, historyCards } = useAppStore.getState();
 
+      // ── MAIN PIPELINE — always runs, never blocked by search ──
+      setTranscript(text);
       if (isFinal) {
-        // Check for voice query trigger phrases
+        const { sessionId, activeCard } = useAppStore.getState();
+        storeSegment(text, sessionId, activeCard?.id ?? null);
+      }
+
+      // ── PARALLEL SEARCH — only when no active conversation (fresh session / between people) ──
+      if (isFinal) {
+        const { activeCard: currentCard } = useAppStore.getState();
         const voiceQuery = detectVoiceQuery(text);
 
-        if (voiceQuery.isQuery) {
-          // New trigger detected — start or continue voice search
-          const newContext = voiceQuery.queryText || '';
-          voiceQueryTextRef.current = voiceQueryTextRef.current
-            ? `${voiceQueryTextRef.current} ${newContext}`
-            : newContext;
+        if (voiceQuery.isQuery && !currentCard) {
+          // Recall trigger detected — resolve and show result briefly
+          const queryText = voiceQuery.queryText || '';
+          voiceQueryTextRef.current = queryText;
 
-          const matchedName = resolveVoiceQueryToName(voiceQueryTextRef.current, historyCards, voiceMatchRef.current);
+          const matchedName = resolveVoiceQueryToName(queryText, historyCards, null);
           if (matchedName) {
             setSearchQuery(matchedName);
             voiceMatchRef.current = matchedName;
           }
           setVoiceSearching(true);
 
-          // Reset auto-clear timer (10s — give user time to think)
+          // Auto-dismiss after 3s — enough time to glance at the result
           if (voiceQueryTimerRef.current) clearTimeout(voiceQueryTimerRef.current);
           voiceQueryTimerRef.current = setTimeout(() => {
             setSearchQuery('');
@@ -169,46 +175,18 @@ export default function Home() {
             voiceQueryTextRef.current = '';
             voiceMatchRef.current = null;
             voiceQueryTimerRef.current = null;
-          }, 10000);
+          }, 3000);
 
-          return; // Don't add trigger phrases to the transcript
+        } else if (isVoiceSearching) {
+          // Any non-trigger speech while search is showing — dismiss immediately.
+          // The user has moved on to normal conversation.
+          if (voiceQueryTimerRef.current) clearTimeout(voiceQueryTimerRef.current);
+          voiceQueryTimerRef.current = null;
+          setSearchQuery('');
+          setVoiceSearching(false);
+          voiceQueryTextRef.current = '';
+          voiceMatchRef.current = null;
         }
-
-        // If voice search is already active, treat ALL speech as additional context
-        if (isVoiceSearching) {
-          // Check if this looks like continuation of the query
-          const isContinuation = isQueryContinuation(text);
-          // Even if it's not a clear continuation pattern, if voice search is active
-          // and the user is still talking, accumulate the context
-          if (isContinuation || voiceQueryTextRef.current.length > 0) {
-            voiceQueryTextRef.current = `${voiceQueryTextRef.current} ${text.trim()}`;
-
-            const matchedName = resolveVoiceQueryToName(voiceQueryTextRef.current, historyCards, voiceMatchRef.current);
-            if (matchedName) {
-              setSearchQuery(matchedName);
-              voiceMatchRef.current = matchedName;
-            }
-
-            // Reset auto-clear timer — user is still providing context
-            if (voiceQueryTimerRef.current) clearTimeout(voiceQueryTimerRef.current);
-            voiceQueryTimerRef.current = setTimeout(() => {
-              setSearchQuery('');
-              setVoiceSearching(false);
-              voiceQueryTextRef.current = '';
-              voiceMatchRef.current = null;
-              voiceQueryTimerRef.current = null;
-            }, 10000);
-
-            return; // Don't add query context to the transcript
-          }
-        }
-      }
-
-      setTranscript(text);
-      // Store final transcript segments with speaker attribution
-      if (isFinal) {
-        const { sessionId, activeCard } = useAppStore.getState();
-        storeSegment(text, sessionId, activeCard?.id ?? null);
       }
     }, 0);
   }, [setTranscript, storeSegment, setSearchQuery, setVoiceSearching]);

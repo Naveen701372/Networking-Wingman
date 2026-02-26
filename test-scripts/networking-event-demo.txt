@@ -1,58 +1,62 @@
-Hey! I'm Navi. Love the venue for this summit.
-Right? I'm Amara Osei, head of ML infrastructure at Shopify. We're rebuilding our recommendation engine from scratch using graph neural networks.
-Graph neural networks for e-commerce? That's a bold move.
-It's paying off. Product discovery improved by thirty-seven percent since we switched from collaborative filtering. The graph captures relationships between products, sellers, and buyer behavior that flat models miss completely.
-I'm building a real-time conversation AI that captures networking contacts from live audio. We deal with similar graph-like relationship problems between people.
-Fascinating. You should look into our open-source graph embedding library, ShopGraph. It handles streaming updates which sounds relevant for your real-time use case.
-I'll check it out this week. What's your team size?
-Fourteen engineers across Toronto and Berlin. We're hiring a senior ML ops engineer if you know anyone.
-I might actually. I'll send you a couple of names on LinkedIn.
-Perfect. Also grab a coffee with my colleague Yuki Watanabe, she runs developer relations at Shopify and would love to feature your project in our partner showcase.
+Hey there! I'm Navi, great event tonight.
+Hi Navi! I'm Riya Patel, Director of Applied AI at Stripe. We're building a fraud detection system that processes two billion transactions a day using graph attention networks.
+Two billion a day? How do you keep latency under control at that scale?
+We run inference at the edge with quantized models. P99 latency is under twelve milliseconds. The trick was moving from batch scoring to streaming evaluation with a custom Kafka pipeline.
+That's wild. I'm building a real-time conversation AI that captures networking contacts from live audio. We have similar streaming challenges.
+Oh interesting. You should look into our open-source stream processing library, Rainforest. It handles backpressure really well for ML workloads.
+I'll check it out this week. What's your team like?
+Twenty-two engineers across San Francisco and Bangalore. We're actively hiring a senior ML platform engineer. Know anyone good?
+I might actually. Let me dig through my network and send you some names on LinkedIn.
+Perfect. Also, my colleague Amir runs our developer partnerships. He'd love to chat about integrating your tool with Stripe's merchant dashboard.
 
-Is this the AI ethics panel overflow? I'm Navi.
-Ha, yeah it's packed in there. I'm Santiago Morales, research scientist at DeepMind. I work on alignment and interpretability for large language models.
-That's heavy stuff. What's the current state of interpretability?
-Honestly, we're still in the dark ages. We can probe individual neurons but understanding emergent behavior at scale is like trying to understand a city by studying individual bricks. My team just published a paper on circuit-level analysis that's getting some traction though.
-We use LLMs for entity extraction in our app and calibrating confidence is a nightmare. Any advice?
-Use ensemble disagreement as your confidence signal. Run the same prompt through two different temperature settings and measure output divergence. High divergence means low confidence. It's cheap and surprisingly effective.
-That's genius. I'm implementing that next sprint.
-Here's my card. Also, my PhD advisor Ingrid Bergström at ETH Zurich runs the Trustworthy AI Lab. She's consulting for startups on responsible AI deployment. Want an intro?
+Hey, mind if I join? I'm Navi.
+Not at all! I'm Mateo Silva, founder and CEO of Canopy Robotics. We build autonomous drones for precision agriculture. Series B, just raised thirty-five million from Andreessen.
+Autonomous ag drones? What crops are you focused on?
+Started with vineyards in Napa, now we cover almonds, avocados, and coffee plantations across three continents. Our drones do real-time crop health analysis using hyperspectral imaging.
+How do you handle the regulatory side? Drone regulations are a nightmare.
+Tell me about it. We spent eighteen months getting FAA Part 137 certification. Now we're the only autonomous ag drone company with full commercial clearance in the US, Brazil, and Kenya.
+That's a massive moat. We deal with regulatory-adjacent stuff too, privacy compliance for audio capture.
+Yeah privacy is everything. We actually built a data sovereignty layer so crop data never leaves the country of origin. Farmers own their data completely.
+Smart. I know a couple of agtech investors who'd be interested in your Series B story. Want me to make intros?
+That would be amazing. Also, we're demoing at CES next month. I can get you a VIP pass if you want to see the drones in action.
+Count me in. I'll follow up with you tomorrow.
+
+Recall, who was the person from Stripe?
+
+Navi! Over here!
+Hey! Who am I meeting?
+This is Aisha Okonkwo. She runs the climate tech accelerator at Y Combinator.
+Hi Navi! Aisha Okonkwo, partner at YC. I focus on climate, energy, and sustainability startups. We just graduated our biggest climate cohort ever, fourteen companies.
+That's incredible. What trends are you seeing in climate tech right now?
+Three big ones. Carbon capture is finally hitting commercial viability. Grid-scale battery storage is the new gold rush. And AI for climate modeling is attracting serious talent from big tech.
+We're not climate tech but our AI approach to real-time data processing could apply to sensor networks and monitoring.
+Absolutely. One of our portfolio companies, TerraWatch, does exactly that. Real-time satellite monitoring of deforestation. They'd love your streaming architecture expertise.
+I'd be happy to chat with them. What's the best way to connect?
+I'll email you their CTO's details tonight. Also, we're hosting a climate tech demo day in March. Would you want to judge? We need technical founders who understand AI infrastructure.
+I'd be honored. Send me the details and I'm there.
+Amazing. Here's my card. And seriously, talk to Mateo about his drone data. There might be a collaboration angle with TerraWatch.
+
+I can't remember the name of the drone company founder.
+
+Excuse me, are you in the AI track? I'm Navi.
+Yes! I'm Soren Lindqvist, principal research scientist at DeepMind. I lead the multimodal reasoning team. We just published a paper on emergent tool use in language models.
+Emergent tool use? Like models figuring out how to use APIs on their own?
+Exactly. We found that at sufficient scale, models spontaneously develop the ability to chain tool calls without explicit training. It's both exciting and terrifying from an alignment perspective.
+We use LLMs for entity extraction and the confidence calibration is really tricky. Any insights?
+Use contrastive decoding. Run the same prompt at two temperatures and measure the KL divergence between output distributions. High divergence means the model is uncertain. It's more principled than just looking at logprobs.
+That's brilliant. I'm implementing that next sprint.
+Happy to review your approach. I also run a reading group on reliable AI systems every Thursday. You should join, it's on Discord.
+I'd love that. Send me the invite link.
+Will do. And my colleague Mei at Google Brain is working on real-time speech understanding. Very relevant to what you're building. Want me to connect you two?
 Absolutely. I'll follow up with you by Friday.
 
-Navi! Over here by the demo stations!
-Amara! How was the graph neural networks talk?
-Incredible. But forget that, meet Tomoko Hayashi.
-Hi Navi! Tomoko Hayashi, co-founder and CTO of Voxel Health. We build spatial computing interfaces for surgical planning using Apple Vision Pro.
-Surgical planning in mixed reality? How do surgeons respond to that?
-Skeptical at first, then they can't go back. We've done over two thousand pre-surgical visualizations across fifteen hospitals. Complication rates dropped by twenty-two percent in our clinical trial.
-The spatial computing space is exploding. We've thought about building a spatial UI for our networking app too.
-You should. The interaction paradigm is completely different from flat screens. We learned that the hard way. Took us eight months to unlearn mobile design patterns.
-What's your biggest technical challenge right now?
-Real-time volumetric rendering from CT scans. We need sub-frame latency for the surgeon to trust the visualization. We're using custom Metal shaders but hitting memory limits on the M2 chip.
-I know someone at Apple's spatial computing team. I'll try to connect you.
-That would be incredible. We're presenting our clinical results at WWDC next month if you want to come.
-Count me in. I'll send you my contact details tonight.
+Recall, find the YC climate partner.
 
-Excuse me, are you in the startup track? I'm Navi.
-Yes! I'm Liam O'Brien, founder of Cadence Analytics. We do real-time sentiment analysis for live customer support calls. Series A, just raised twelve million from Accel.
-Sentiment analysis on live calls? We're in adjacent spaces. Our app does entity extraction from live conversations.
-No way. What's your transcription stack?
-Deepgram for speech-to-text with a custom speaker attribution layer on top. You?
-We use a fine-tuned Whisper model hosted on our own infrastructure. Latency is around three hundred milliseconds end to end.
-That's impressive. We're at about four hundred. How do you handle accent variation?
-We trained on a diverse dataset with forty-seven accent categories. The key insight was that accent-specific fine-tuning actually hurt generalization. A single robust model with accent-aware data augmentation works better.
-That's counterintuitive but makes sense. I'd love to compare architectures.
-Let's do a technical deep dive next week. I'll share our benchmarks if you share yours.
-Deal. Also, my investor Sarah Chen at Accel is looking at more audio AI companies. Want me to set up a warm intro?
-That would be amazing. I'll have our deck ready by Wednesday.
-
-Santiago! Good to see you again.
-Navi! Small conference, big ideas. Listen, I want you to meet someone. This is Zara Hussain.
-Hey Navi. Zara Hussain, partner at Lightspeed Venture Partners. I focus on AI infrastructure and developer tools.
-Santiago's been telling me about your real-time extraction approach. Walk me through the architecture.
-We capture live audio, run it through Deepgram for transcription, then use an LLM pipeline for entity extraction, reconciliation, and deduplication. All in real-time as the conversation happens.
-What's your unit economics look like? LLM costs per conversation?
-We're tracking that closely. Currently about two cents per five-minute conversation on DeepSeek, but we're optimizing the extraction pipeline to reduce token usage by batching context windows.
-Smart. The companies that win in AI infrastructure are the ones obsessing over cost efficiency from day one. Send me your metrics dashboard and let's schedule a partner meeting next Tuesday.
-I'll have everything ready. Thanks Zara.
-Looking forward to it. Here's my direct line.
+Riya! Great running into you again.
+Navi! Small world. Listen, I talked to Amir about your app and he's really excited. He wants to schedule a technical deep dive next Wednesday.
+That's fantastic, thanks for pushing that forward.
+Of course. Also, I forgot to mention earlier, we're launching a startup integration program next quarter. Early-stage companies get free API access plus dedicated support. You should definitely apply.
+I'm on it. By the way, I just met Soren from DeepMind. His work on contrastive decoding could really improve our fraud detection confidence scores too.
+Oh I know Soren's work. His emergent tool use paper was incredible. Send me his contact and I'll reach out about a research collaboration.
+Done. Great seeing you again Riya.
+You too! Don't forget, Wednesday with Amir. I'll send the calendar invite tonight.

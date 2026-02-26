@@ -29,13 +29,11 @@ const TRIGGER_PATTERNS: RegExp[] = [
 ];
 
 // Phrases that indicate the user is STILL describing (continuation of a query)
+// These must be tight — a normal conversation line should NOT match.
 const CONTINUATION_PATTERNS: RegExp[] = [
-  /^(and|also|or|but|who|the one|that|they|he|she|with|at|from|works?|worked)/i,
-  /^(something|someone|somebody|like|maybe|i think|probably|possibly)/i,
-  /^(no not|not that|the other|different|another)/i,
-  /company|role|job|title|position|team|department/i,
-  /design|engineer|develop|found|invest|build|manage|lead|direct/i,
-  /microsoft|google|apple|meta|amazon|stripe|figma|openai|anthropic/i,
+  /^(and|also|or|but|who|the one|that|they|he|she|with|at|from|works?|worked)\b/i,
+  /^(something|someone|somebody|like|maybe|i think|probably|possibly)\b/i,
+  /^(no not|not that|the other|different|another)\b/i,
 ];
 
 export interface VoiceQueryResult {

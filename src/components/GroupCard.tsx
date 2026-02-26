@@ -42,16 +42,21 @@ export function GroupCard({ group, cards, onLinkedInClick }: GroupCardProps) {
   const previewMembers = memberCards.slice(0, 3);
   const isInsight = group.type === 'custom' && group.count === 0;
 
+  const isRecallCard = group.type === 'topic' || group.type === 'custom';
+  // Topic cards with members can expand to show people; insight cards cannot
+  const hasMembers = memberCards.length > 0;
+  const canExpand = !isInsight && hasMembers;
+
   return (
     <div className="transition-all duration-300 ease-out">
       {/* Main group card — matches PersonCardItem design */}
       <div
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={() => canExpand && setIsExpanded(!isExpanded)}
         className={`
           bg-white/95 backdrop-blur-xl rounded-2xl shadow-lg
           border border-gray-100
-          transition-all duration-300 ease-out cursor-pointer
-          hover:shadow-xl hover:scale-[1.01]
+          transition-all duration-300 ease-out
+          ${canExpand ? 'cursor-pointer hover:shadow-xl hover:scale-[1.01]' : ''}
           ${isExpanded ? 'p-5' : 'p-4'}
         `}
       >
@@ -91,39 +96,41 @@ export function GroupCard({ group, cards, onLinkedInClick }: GroupCardProps) {
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
-                {/* Group name — italic serif like contact names */}
-                <h4 className="text-2xl font-medium text-gray-900 italic font-serif truncate">
+                {/* Group name — no truncate for recall cards */}
+                <h4 className={`text-2xl font-medium text-gray-900 italic font-serif ${isRecallCard ? '' : 'truncate'}`}>
                   {group.label}
                 </h4>
 
                 {/* Member count — hide for insight cards */}
                 {!isInsight && (
                   <p className="text-gray-700 text-sm mt-0.5">
-                    {group.count} {group.count === 1 ? 'person' : 'people'}
+                    {memberCards.length} {memberCards.length === 1 ? 'person' : 'people'}
                   </p>
                 )}
               </div>
 
-              {/* Expand/Collapse button */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
-                className="w-8 h-8 bg-gray-400/80 rounded-lg flex items-center justify-center flex-shrink-0 ml-2"
-                aria-label={isExpanded ? 'Collapse' : 'Expand'}
-              >
-                <svg
-                  className={`w-4 h-4 text-white transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              {/* Expand/Collapse button — show for cards with members */}
+              {canExpand && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+                  className="w-8 h-8 bg-gray-400/80 rounded-lg flex items-center justify-center flex-shrink-0 ml-2"
+                  aria-label={isExpanded ? 'Collapse' : 'Expand'}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+                  <svg
+                    className={`w-4 h-4 text-white transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              )}
             </div>
 
-            {/* Reason / summary — like the contact card summary */}
-            <p className={`text-gray-600 text-sm mt-3 leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
-              {group.reason || `A group of ${group.count} contacts`}
+            {/* Reason / summary — full text for recall cards, truncated for others */}
+            <p className={`text-gray-600 text-sm mt-3 leading-relaxed ${isRecallCard ? '' : (isExpanded ? '' : 'line-clamp-2')}`}>
+              {group.reason || `A group of ${memberCards.length} contacts`}
             </p>
 
             {/* Expanded: show member list — only for groups with members */}

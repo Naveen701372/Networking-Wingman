@@ -29,7 +29,8 @@ export function useSimulatedTranscription(
     // Fetch the script from the file at runtime
     let scriptText: string;
     try {
-      const res = await fetch('/api/sim-script');
+      const scriptName = process.env.NEXT_PUBLIC_SIM_SCRIPT || 'networking-event-demo';
+      const res = await fetch(`/api/sim-script?script=${encodeURIComponent(scriptName)}`);
       const data = await res.json();
       if (!res.ok || !data.script) {
         throw new Error(data.error || 'Failed to load script');
